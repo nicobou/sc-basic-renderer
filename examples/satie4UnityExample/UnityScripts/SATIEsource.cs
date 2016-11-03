@@ -57,13 +57,30 @@ public class SATIEconnection {
 
 public class SATIEsource : SATIEnode {
 
-    //public string listener="*";
+
+	[Header("Source Settings")]
+
+	public List<SATIElistener> myListeners = new List<SATIElistener>(); 
+
+	//public string listener="*";
     public string group = "default";   
   
     //public bool mute = false;   not used
     //private bool _mutestate;
 
-    //  threw out vertical directivity: too complicated to avoid gimble lock.
+	[Header("Culling Settings")]
+	public bool cullingMute = false;
+	public float cullMuteThreshDB = -66f;
+	public float cullMuteUpperThreshOffsetDB = 1f;  // Used to calculate highThreshold for debouncing
+
+	private float _cullMuteLowThreshAmp;
+	private float _cullMuteHighThreshAmp;
+
+	private bool _cullMute = false;   // true when distance scaling goes below cullMuteLowThreshDB, false when above cullMuteHighThreshDB
+
+	[Header("Connection Settings")]
+
+	//  threw out vertical directivity: too complicated to avoid gimble lock.
     public string sourceDirectivity = "omni";
     public float cardioidDirectivityExp = 1;  // used when "cardioid" type of source diffusity is selected
   
@@ -94,13 +111,15 @@ public class SATIEsource : SATIEnode {
     public float gainTrimDB = 0f;  // adds  N DB  to node's gain BEFORE node's maxGainClipDB is applied in connection
     private float _gainTrimDB;
 
+
     [Range(-36f, 0f)]
     public float maxGainClipDB = 0f;
     private float _maxGainClipDB = 0f;
 
 
 
-	public List<SATIElistener> myListeners = new List<SATIElistener>(); 
+
+	[Header("Underwater Settings")]
 
 	// implemented for a single listener only
 	public bool underWaterProcessing = false;  
@@ -112,7 +131,7 @@ public class SATIEsource : SATIEnode {
 	public float underWaterHpHz = 800;  // low frequency cutoff when underwater
 	private float _underWaterHpHz;
 
-	[Range(0f, -80f)]
+	[Range(-80f, 24)]
 	public float underWaterDBdrop = -40;  //  DB drop of an above water sound, when heard when under water
 	private float _underWaterDBdrop;
 
@@ -133,6 +152,8 @@ public class SATIEsource : SATIEnode {
 
     private float SPEED_OF_SOUND = 0.340f;
 
+
+
     //private bool _initialized = false;
 
 
@@ -143,7 +164,24 @@ public class SATIEsource : SATIEnode {
     delegate float SrcDirFnPtr(float theta);   //holds function for node's H directivity
     SrcDirFnPtr srcDirFnPtr;
 	
-   
+
+
+	void refresh()
+	{
+		_cullMuteLowThreshAmp = Mathf.Pow(10f, cullMuteThreshDB/20f);
+
+		_cullMuteHighThreshAmp = Mathf.Pow(10f, ( cullMuteThreshDB + cullMuteUpperThreshOffsetDB) / 20f);
+
+
+		if ( !cullingMute && _cullMute)
+		{
+			setNodeActive (nodeName, true);
+			_cullMute = false;
+		}
+
+	}
+
+
 	public override void OnValidate()
 	{
 
@@ -155,6 +193,7 @@ public class SATIEsource : SATIEnode {
         if (!_initialized)
             return;
         	
+		refresh();
   
         if (_sourceFocusPercent != sourceFocusPercent)
 		{
@@ -225,7 +264,16 @@ public class SATIEsource : SATIEnode {
 		}
 	}
 
+    public void setGainTrimDB(float trimDB)
+    {
+        gainTrimDB = trimDB;
 
+        if (_gainTrimDB != gainTrimDB)
+        {
+            _gainTrimDB = gainTrimDB; 
+            updateConnection();
+        }
+    }
 
    public override void Start()
     {
@@ -247,6 +295,9 @@ public class SATIEsource : SATIEnode {
        
 		//Debug.Log("************\tsource: " + nodeName + "  group_______: " + group);
 
+		_cullMuteLowThreshAmp = Mathf.Pow(10f, cullMuteThreshDB/20f);
+
+		_cullMuteHighThreshAmp = Mathf.Pow(10f, ( cullMuteThreshDB + cullMuteUpperThreshOffsetDB) / 20f);
 
         _sourceFocusPercent = sourceFocusPercent = Mathf.Clamp(sourceFocusPercent, 0f, 100f);
 
@@ -313,7 +364,7 @@ public class SATIEsource : SATIEnode {
 		foreach (SATIEconnection conn in myConnections) {
 			// note: the current implimentation does not provide for multiple listeners with listener-specific connection params.
 			
-			SATIEconnection c = new SATIEconnection ();
+			//SATIEconnection c = new SATIEconnection (); // Never used warning
 			
 			conn.doppler = dopplarEffect;
 			conn.distance = distanceEffect;
@@ -363,7 +414,7 @@ public class SATIEsource : SATIEnode {
                     {
 						Debug.LogError("SATIEsource.connectionInit:  myListeners's gameObj: " + listener.name + " INVALID LISTENER");
                     }
-                }
+               } 
             }
 
             if (tempListeners.Count != myListeners.Count)
@@ -445,6 +496,7 @@ public class SATIEsource : SATIEnode {
             if (conn.listener.updatePosFlag || conn.listener.updateRotFlag || updatePosFlag || updateRotFlag )
 			{
 				computeConnection(conn);
+
 				updatePosFlag = updateRotFlag = false;
 			}
 		}
@@ -466,21 +518,6 @@ public class SATIEsource : SATIEnode {
 		SATIElistener listener = conn.listener;
 
 
-        if (aboveWaterMuting)
-        {
-            if (!listener.submergedFlag)   // we are above water
-            {
-                if (_aboveWaterState == true)
-                    return;   
-            }
-            else // we are below water
-            {
-                _aboveWaterState = false;
-            }
-        }
-           
-
-
         Transform source = transform;
  
 		float newSpread;
@@ -489,7 +526,7 @@ public class SATIEsource : SATIEnode {
         float myRadius = conn.radius;
 
         float azimuth, elevation,distance;
-        float dist2Dxz; 
+//		float dist2Dxz;  // Never used warning
 
         Vector3 listenerAED = new Vector3();            
 
@@ -503,10 +540,44 @@ public class SATIEsource : SATIEnode {
 
         //For the gain and vdel calculation, we want the distance to the radius:
 		float dist2Radius = distance - myRadius;
+		float scaledDistance = getScaledDist(listener,dist2Radius);
+		float distanceScaler =  1.0f / (1.0f + scaledDistance);
 
-     	
 
-		//  set  cutoff filter to eliminate low frequencies when under water
+		// first test for culling
+		if (cullingMute) 
+		{			
+			if (_cullMute) 
+			{
+				if (distanceScaler < _cullMuteHighThreshAmp) 
+				{
+					return; // node is still too far to take action
+				} else 
+				{
+					setNodeActive (nodeName, true);
+					_cullMute = false;
+					//Debug.Log ("DISABLING CULLING MUTING ");
+
+				}
+			}
+		}
+		// ! _cullMute testing is done at the end of this function
+
+
+		if (aboveWaterMuting)
+		{
+			if (!listener.submergedFlag )   // we are above water
+			{
+				if (_aboveWaterState == true)
+					return;   
+			}
+			else // we are below water
+			{
+				_aboveWaterState = false;
+			}
+		}
+
+				//  set  cutoff filter to eliminate low frequencies when under water
         if (listener.submergedFlag  && underWaterProcessing ) {
 			if (_underWaterHpHz != underWaterHpHz) {
 				_underWaterHpHz = underWaterHpHz;
@@ -549,7 +620,7 @@ public class SATIEsource : SATIEnode {
 
             if ( newSpread != conn.currentspread )   // changed ?
             {
-                path = "/spatosc/core/connection/" + source.name + "->"+listener.name+"/spread";
+                // path = "/spatosc/core/connection/" + source.name + "->"+listener.name+"/spread";   REDUNDANT LINE COMMENTED OUT
                 conn.currentspread = newSpread;
 
                 items.Add(newSpread);             
@@ -578,29 +649,28 @@ public class SATIEsource : SATIEnode {
 		}
 
         
+	
         if (dist2Radius>0f)
         {
             // now from distance, compute gain, lowPassCutoff-fq and variable delay:
-           float distanceScaler;
-            float scaledDistance; 
             float srcDirectivityScaler;
 
-			float distanceEffect = conn.distance;
-			float lowPassEffect;
-			float directivityEffect = conn.directivity;
+//			float distanceEffect = conn.distance; // Never used warning
+//			float lowPassEffect; // Never used warning
+//			float directivityEffect = conn.directivity; // Never used warning
             
 			vdelMs_ = getVariableDelay(dist2Radius, conn.doppler);   // calculate this independently of underwater status
 
-			if (listener.submergedFlag && underWaterProcessing)
-			{
-				scaledDistance = Mathf.Pow(dist2Radius, underWaterDistanceEffect * 0.01f ); // calculate distanceFactor for underwater
-			}
-			else 
-				scaledDistance = Mathf.Pow(dist2Radius, distanceEffect * 0.01f); // calculate distanceFactor (effect) param
+//			if (listener.submergedFlag && underWaterProcessing)
+//			{
+//				scaledDistance = Mathf.Pow(dist2Radius, underWaterDistanceEffect * 0.01f ); // calculate distanceFactor for underwater
+//			}
+//			else 
+//				scaledDistance = Mathf.Pow(dist2Radius, distanceEffect * 0.01f); // calculate distanceFactor (effect) param
   
             distFq_ = getDistFq(scaledDistance);  // using distance after distanceFactor applied          
 
-            distanceScaler = 1.0f / (1.0f + scaledDistance);
+            //distanceScaler = 1.0f / (1.0f + scaledDistance);
 
 			srcDirectivityScaler = calcSrcDirectivity(conn);  
 
@@ -624,7 +694,7 @@ public class SATIEsource : SATIEnode {
 				distFq_ =  Mathf.Pow (distFq_, (100 / underWaterLpassEffect)); // calculate distanceFactor (effect) param
 				distFq_ = Mathf.Clamp(distFq_, 100, 22050f); 
 
-				// sounds not supposed to be heard underwater are greatly attenuated
+				// sounds not supposed to be heard underwater can be greatly attenuated
 				if(underWaterProcessing)
 				{
 					gainDB_ = gainDB_ + underWaterDBdrop; // calculate distanceFactor (effect) param
@@ -637,12 +707,14 @@ public class SATIEsource : SATIEnode {
 			vdelMs_ = 0.0f;	
 			gainDB_ = conn.maxGainClip ;
 
-			if (listener.submergedFlag) 
+            // WAS if (listener.submergedFlag) 
+            if (listener.submergedFlag  && underWaterProcessing )
 			{
 				distFq_ =  Mathf.Pow (22050f, (100 / underWaterLpassEffect)); // calculate distanceFactor (effect) param
 				distFq_ = Mathf.Clamp(distFq_, 100, 22050f); 
 
-				if (!underWaterProcessing)
+                // was if (!underWaterProcessing)
+				//      gainDB_ = gainDB_  + underWaterDBdrop;
 					gainDB_ = gainDB_  + underWaterDBdrop;
 			}
 			else
@@ -670,13 +742,237 @@ public class SATIEsource : SATIEnode {
         items.Add(vdelMs_);
         items.Add(distFq_);
         items.Add (distance);
-        //items.Add (dist2Dxz);
+
+		SATIEsetup.OSCtx(path, items);   // send OSC connection update
+
+		items.Clear();
+
 
         //Debug.Log("CONNECTION DISTANCE FROM LISTENER: " + distance);
 
-        SATIEsetup.OSCtx(path, items);
-        items.Clear();
-      }
+		// node has entered into culling muting,  set state accordingly
+		if (cullingMute) 
+		{
+			if (!_cullMute && (distanceScaler < _cullMuteLowThreshAmp)) 
+			{
+				setNodeActive (nodeName, false);
+				_cullMute = true;
+				//Debug.Log ("ENABLING CULLING MUTING ");
+			}
+		}
+     }
+
+    // called with a position,  using the node's connection params,   connection update parameters are generated and returned.  
+    // Typically called by a particle gen. script, that is a parent of this srcNode
+    // returns list of azi, elev, gain, delayMs, lpassFq, hpassFq , distance
+    // STILL NEED TO FULLY IMPLEMENT  UNDERWATER STUFFF
+
+
+    // NOTES TO SELF ABOUT THIS
+    //  SPREAD seems to be mishandled... an additional connection param should be added for that
+
+
+
+    public List <float>  getParticleConnParams(Vector3 particleXYZ)
+    {
+        List<float> connParams = new List<float>();
+
+        List<object> items = new List<object>();
+
+        Transform source = transform;
+        SATIEconnection conn = null;
+        SATIElistener listener = null;
+
+        float HpHz = 1f;  // using temp variable here
+
+        if (!nodeEnabled)
+            return connParams;
+
+        //Debug.Log("getParticleConnParams: CONNECTION COUNT: "+ myConnections.Count);
+
+        foreach ( SATIEconnection connection in myConnections)
+        {
+            listener = connection.listener;
+            conn = connection;
+
+            if (conn != null && listener != null) break;
+        }
+
+        if (listener == null )
+        {
+            Debug.LogWarning("SATIEsource.getParticleConnParams(): no listener, can't processes"); 
+            return connParams;
+        }
+
+        if (conn == null )
+        {
+            Debug.LogWarning("SATIEsource.getParticleConnParams(): no connection, can't processes"); 
+            return connParams;
+        }
+
+        float newSpread;
+
+        float vdelMs_, distFq_, gainDB_;
+
+        float azimuth, elevation, distance;
+
+        Vector3 listenerAED = new Vector3();            
+
+        // get distance and angles of source relative to listener
+        listenerAED = getAedFromSink(particleXYZ, listener);
+        azimuth = listenerAED.x;
+        elevation = listenerAED.y;
+        distance = listenerAED.z;
+
+        //For the gain and vdel calculation, we want the distance to the radius:
+        //float dist2Radius = distance - myRadius;      NO radius calculation--- RADIUS FEATURE DISABLED FOR NOW
+
+
+       //  set  cutoff filter to eliminate low frequencies when under water
+        if (listener.submergedFlag)
+        {
+            if (_underWaterHpHz != underWaterHpHz)
+            {
+                _underWaterHpHz = underWaterHpHz;
+
+            }
+        } else
+        {
+            if (_underWaterHpHz == underWaterHpHz)
+            {
+                _underWaterHpHz = 1f;       // reset the cutoff filter to normal
+
+            }
+        }
+  
+
+        if (listener.submergedFlag && underWaterProcessing)
+            newSpread = underWaterIncidenceEffect * .01f ;   // diminish incidence underwater: multiply the spread by some percentage 
+        else 
+            newSpread = conn.spread; 
+
+        if (conn.currentspread != newSpread)
+        {
+            string path = "/spatosc/core/connection/" + source.name + "->"+listener.name+"/spread";
+
+            conn.currentspread = newSpread;
+            items.Add(newSpread);             
+            SATIEsetup.OSCtx(path, items);   // send spread message via OSC
+            items.Clear();
+            //SATIEsetup.OSCdebug("/debug/getSpreadIndex", conn.spread);
+        }
+
+
+
+        float dist2Radius = distance;  // RADIUS PROCESSING DISABLED..
+        if (dist2Radius > 0f)     // SO THIS IS ALWAYS CALLED FOR ALL DISTANCES > ZERO    
+        {
+            // now from distance, compute gain, lowPassCutoff-fq and variable delay:
+            float distanceScaler;
+            float scaledDistance; 
+            float srcDirectivityScaler;
+
+            float distanceEffect = conn.distance;
+//			float lowPassEffect; // Never used warning
+//			float directivityEffect = conn.directivity; // Never used warning
+
+            vdelMs_ = getVariableDelay(dist2Radius, conn.doppler);   // calculate this independently of underwater status
+
+            if (listener.submergedFlag && underWaterProcessing)
+            {
+                scaledDistance = Mathf.Pow(dist2Radius, underWaterDistanceEffect * 0.01f); // calculate distanceFactor for underwater
+            } else
+                scaledDistance = Mathf.Pow(dist2Radius, distanceEffect * 0.01f); // calculate distanceFactor (effect) param
+
+            distFq_ = getDistFq(scaledDistance);  // using distance after distanceFactor applied          
+
+            distanceScaler = 1.0f / (1.0f + scaledDistance);
+
+            srcDirectivityScaler = calcSrcDirectivity(conn);  
+
+            if (debug)
+                Debug.DrawRay(particleXYZ, (Vector3.forward * 50f * srcDirectivityScaler), Color.green, 2f); 
+
+            // obtain connection energy using distance * sourceDirectivity (based on incidence to listener)
+
+            if (listener.submergedFlag && underWaterProcessing)
+                gainDB_ = getGainDB(distanceScaler, srcDirectivityScaler, (underWaterIncidenceEffect * 0.01f), conn.maxGainClip);
+            else
+                gainDB_ = getGainDB(distanceScaler, srcDirectivityScaler, conn.directivity, conn.maxGainClip);
+
+
+
+            if (listener.submergedFlag  && underWaterProcessing )
+            {
+                //distFq_ = distFq_ * underWaterLpassEffect  * 0.01f;
+                //Debug.Log("distFq_ = " + distFq_);
+
+                // distFq_ =  distFq_ *  (100f / underWaterLpassEffect); // calculate distanceFactor (effect) param
+
+                distFq_ =  Mathf.Pow (distFq_, (100 / underWaterLpassEffect)); // calculate distanceFactor (effect) param
+                distFq_ = Mathf.Clamp(distFq_, 100, 22050f); 
+
+                // sounds not supposed to be heard underwater can be greatly attenuated
+                if(underWaterProcessing)
+                {
+                    gainDB_ = gainDB_ + underWaterDBdrop; // calculate distanceFactor (effect) param
+                    // if ( gainDB_ > conn.maxGainClip )  gainDB_ =   conn.maxGainClip;
+                }
+            }
+        }
+        else   // IGNORE:  very close to sound node
+        {
+            vdelMs_ = 0.0f; 
+            gainDB_ = conn.maxGainClip ;
+
+            // WAS if (listener.submergedFlag) 
+            if (listener.submergedFlag  && underWaterProcessing )
+            {
+                distFq_ =  Mathf.Pow (22050f, (100 / underWaterLpassEffect)); // calculate distanceFactor (effect) param
+                distFq_ = Mathf.Clamp(distFq_, 100, 22050f); 
+
+                // was if (!underWaterProcessing)
+                //      gainDB_ = gainDB_  + underWaterDBdrop;
+                gainDB_ = gainDB_  + underWaterDBdrop;
+            }
+            else
+            {
+                distFq_ = 22050f;
+            }
+        }
+ 
+        if (!listener.submergedFlag && aboveWaterMuting)
+        {
+            //Debug.Log("ABOVE WATER ATTENUATION");
+            gainDB_ = -90f;    // we do not set _aboveWaterMuting since it is not used to trigger a return() from this funciton
+        }
+
+        if ( ! listener.submergedFlag && aboveWaterMuting ) gainDB_ = -99;
+
+        HpHz = (listener.submergedFlag && underWaterProcessing) ? underWaterHpHz : 1f;
+
+        connParams.Add(azimuth);        // 0
+        connParams.Add(elevation);      // 1
+        connParams.Add(gainDB_);        // 2
+        connParams.Add(vdelMs_);        // 3
+        connParams.Add(distFq_);        //4
+        connParams.Add(HpHz); //5     using a temp variable in debugging this
+        connParams.Add(distance);      // 6
+
+        //Debug.Log(transform.name+": getParticleConnParams: UNDERWATER FLAG: "+ underWaterProcessing+" :  hz= "+HpHz);
+
+        return (connParams);
+    }
+
+    float getScaledDist (SATIElistener listener, float dist2Radius)
+	{
+//		float scaledDistance; // Never used warning
+
+		if (listener.submergedFlag && underWaterProcessing)
+			return Mathf.Pow(dist2Radius, underWaterDistanceEffect * 0.01f); // calculate distanceFactor for underwater
+		else
+			return Mathf.Pow(dist2Radius, distanceEffect * 0.01f); // calculate distanceFactor (effect) param
+	}
 
 
     // returns the projected distance on XZ 
@@ -777,7 +1073,6 @@ public class SATIEsource : SATIEnode {
     
     float getGainDB(float distanceScaler, float directivity, float directivityFactor, float gainClip)
     {
-        
         float gainDB;
         
         float directivityScaler = Mathf.Pow(directivity, directivityFactor * 0.01f);
@@ -969,150 +1264,4 @@ public class SATIEsource : SATIEnode {
         srcDirFnPtr = getOmni;
         //Debug.Log("SETTING OMNI");
     }
-
-
-
-
-    // called with a position,  using the node's connection params,   connection update parameters are generated and returned.  
-    // Typically called by a particle gen. script, that is a parent of this srcNode
-    // returns list of azi, elev, gain, delayMs, lpassFq, hpassFq , distance
-    // STILL NEED TO FULLY IMPLEMENT  UNDERWATER STUFFF
-    public List <float>  getParticleConnParams(Vector3 particleXYZ)
-    {
-         List<float> connParams = new List<float>();
-
-        if (!nodeEnabled)
-            return connParams;
-
-        SATIEconnection conn = myConnections [0];
-        SATIElistener listener = conn .listener;
-
-        if (listener == null )
-        {
-            Debug.LogWarning("SATIEsource.getParticleConnParams(): no listener, can't processes"); 
-            return connParams;
-        }
-
-        float newSpread;
-
-        float vdelMs_, distFq_, gainDB_;
- 
-        float azimuth, elevation, distance;
-
-        Vector3 listenerAED = new Vector3();            
-
-        // get distance and angles of source relative to listener
-        listenerAED = getAedFromSink(particleXYZ, listener);
-        azimuth = listenerAED.x;
-        elevation = listenerAED.y;
-        distance = listenerAED.z;
-
-        //For the gain and vdel calculation, we want the distance to the radius:
-        float dist2Radius = distance;   //  IGNORE RADIUS- myRadius;
-
-        //  set  cutoff filter to eliminate low frequencies when under water
-        if (listener.submergedFlag)
-        {
-            if (_underWaterHpHz != underWaterHpHz)
-            {
-                _underWaterHpHz = underWaterHpHz;
-
-            }
-        } else
-        {
-            if (_underWaterHpHz == underWaterHpHz)
-            {
-                _underWaterHpHz = 1f;       // reset the cutoff filter to normal
-
-            }
-        }
-        // IGNORE  RADIUS FEATURE
-
-        if (dist2Radius > 0f)
-        {
-            // now from distance, compute gain, lowPassCutoff-fq and variable delay:
-            float distanceScaler;
-            float scaledDistance; 
-            float srcDirectivityScaler;
-
-            float distanceEffect = conn.distance;
-            float lowPassEffect;
-            float directivityEffect = conn.directivity;
-
-            vdelMs_ = getVariableDelay(dist2Radius, conn.doppler);   // calculate this independently of underwater status
-
-            if (listener.submergedFlag && underWaterProcessing)
-            {
-                scaledDistance = Mathf.Pow(dist2Radius, underWaterDistanceEffect * 0.01f); // calculate distanceFactor for underwater
-            } else
-                scaledDistance = Mathf.Pow(dist2Radius, distanceEffect * 0.01f); // calculate distanceFactor (effect) param
-
-            distFq_ = getDistFq(scaledDistance);  // using distance after distanceFactor applied          
-
-            distanceScaler = 1.0f / (1.0f + scaledDistance);
-
-            srcDirectivityScaler = calcSrcDirectivity(conn);  
-
-            if (debug)
-                Debug.DrawRay(particleXYZ, (Vector3.forward * 50f * srcDirectivityScaler), Color.green, 2f); 
-
-            // obtain connection energy using distance * sourceDirectivity (based on incidence to listener)
-
-            if (listener.submergedFlag && underWaterProcessing)
-                gainDB_ = getGainDB(distanceScaler, srcDirectivityScaler, (underWaterIncidenceEffect * 0.01f), conn.maxGainClip);
-            else
-                gainDB_ = getGainDB(distanceScaler, srcDirectivityScaler, conn.directivity, conn.maxGainClip);
-
-
-            if (listener.submergedFlag)
-            {
-  
-                distFq_ = Mathf.Pow(distFq_, (100 / underWaterLpassEffect)); // calculate distanceFactor (effect) param
-                distFq_ = Mathf.Clamp(distFq_, 100, 22050f); 
-
-                // sounds not supposed to be heard underwater are greatly attenuated
-                if (!underWaterProcessing)
-                {
-                    gainDB_ = gainDB_ + underWaterDBdrop; // calculate distanceFactor (effect) param
-                    // if ( gainDB_ > conn.maxGainClip )  gainDB_ =   conn.maxGainClip;
-                }
-            }
-        } else   // very close to sound node, no attenuation effect
-        {
-            vdelMs_ = 0.0f; 
-            gainDB_ = conn.maxGainClip;
-
-            if (listener.submergedFlag)
-            {
-                distFq_ = Mathf.Pow(22050f, (100 / underWaterLpassEffect)); // calculate distanceFactor (effect) param
-                distFq_ = Mathf.Clamp(distFq_, 100, 22050f); 
-
-                if (!underWaterProcessing)
-                    gainDB_ = gainDB_ + underWaterDBdrop;
-            } else
-            {
-                distFq_ = 22050f;
-            }
-        }
-        // /spatosc/core/connection/sourceNode->listenerNode/update azimuthRADIANS elevationRADIANS gainDB delayMS  lpHZ 
-        // Debug.Log("  AZI: "+ azimuth*Mathf.Rad2Deg+"  Elev: "+elevation*Mathf.Rad2Deg); 
-
-        if ( ! listener.submergedFlag && aboveWaterMuting ) gainDB_ = -99;
-
-        connParams.Add(azimuth);        // 0
-        connParams.Add(elevation);      // 1
-        connParams.Add(gainDB_);        // 2
-        connParams.Add(vdelMs_);        // 3
-        connParams.Add(distFq_);        //4
-        connParams.Add(_underWaterHpHz); //5
-        connParams.Add(distance);      // 6
-
-        return (connParams);
-
-    }
-
-
-
-
-
-}
+ }

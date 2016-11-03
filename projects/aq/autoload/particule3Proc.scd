@@ -6,7 +6,7 @@
 // this file defines  a process class, which is ONLY used by source nodes that have that have a URI of type:   "process" , e.g:      uri://process  "particule3"
 // you can define any number of these process clases, each one, corresponding to a particular type of processing  behavoir you define
 
-// this class is for preallocated klones with no spatializer updates (except for the one at trigger time)
+// this class is for KAMAKAZI synths,  klones.   Thus, there are  is no spatializer updates (except for the one at trigger time) once the synth has been created
 //  FOR USE WITH SYNTHDEFS that generate delayed random offsets for clones
 
 // required:  set up class struct

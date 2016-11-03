@@ -39,6 +39,7 @@ public class SATIEsetup : MonoBehaviour {
     public string RendererAddress = "localhost";
 	public int RendererPort = 18032;
 
+ 
     public int getPort() {
     return RendererPort;
     }
@@ -55,6 +56,10 @@ public class SATIEsetup : MonoBehaviour {
 	public bool invertAzimuth = false;
 
 	public static bool invertAzi = false;   // this is referenced by source connections
+
+
+    public static bool debugMessTx_static = false;
+    public bool debugMessTx = false;
 
 
 	[HideInInspector] 
@@ -156,6 +161,9 @@ public class SATIEsetup : MonoBehaviour {
 
 		invertAzi = invertAzimuth;
 
+        debugMessTx_static = debugMessTx;
+
+
 		StartCoroutine( initSatie() );
 	}
 	
@@ -170,7 +178,10 @@ public class SATIEsetup : MonoBehaviour {
 		if (invertAzi != invertAzimuth)
 				invertAzi = invertAzimuth;
 
+        if (debugMessTx_static != debugMessTx)
+            debugMessTx_static = debugMessTx;
     }
+
 
     void setUpdateRate(float updateMs)
     {
@@ -237,6 +248,36 @@ public class SATIEsetup : MonoBehaviour {
             _lastUpdate = Time.time;
         }
     }
+
+    public void freeSrcNodesInGroup( string groupName )
+    {
+        if (!connected) return;
+
+        // iterate backwards to modify collection
+        for (int i = SATIEnode.sourceInsatances.Count - 1; i >= 0; i--)
+        {           
+            SATIEsource src = (SATIEsource)SATIEnode.sourceInsatances[i];
+                         
+            if (src.group.Equals(groupName))
+            {
+                Debug.Log(GetType() + ".freeSrcNodesInGroup():   deleting node: " + src.nodeName + "  in group: " + src.group);                 
+                SATIEnode.sourceInsatances.RemoveAt(i);
+                src.deleteNode(src.nodeName);                 
+            }
+         }
+//  no need to do this brute force
+//        Debug.Log(GetType() + ".freeSrcNodesInGroup():  telling renderer to kill all nodes in group: " + groupName);  
+//        string path = "/a.renderer";
+//        OSCMessage message = new OSCMessage (path);
+//        message.Append("freeSynths");
+//        message.Append(groupName);
+//        sendOSC (message);
+    }
+
+
+
+
+
 
 
     void OnDestroy()
@@ -414,6 +455,8 @@ public class SATIEsetup : MonoBehaviour {
 
     public static void OSCdebug (string path, string val)
     {
+        if (!debugMessTx_static)
+            return;
         OSCMessage message = new OSCMessage (path);
         message.Append(val);
         sendOSC(message); 
@@ -421,6 +464,8 @@ public class SATIEsetup : MonoBehaviour {
 
     public static void OSCdebug (string path, float val)
     {
+        if (!debugMessTx_static)
+            return;
         OSCMessage message = new OSCMessage (path);
         message.Append(val);
         sendOSC(message); 
@@ -428,6 +473,8 @@ public class SATIEsetup : MonoBehaviour {
 
     public static void OSCdebug (string path, List <object> items)
     {
+        if (!debugMessTx_static)
+            return;
         OSCMessage message = new OSCMessage (path);
         foreach (object value in items)
         {

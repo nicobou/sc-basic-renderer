@@ -5,6 +5,244 @@
 //~dumpNodes.value();
 
 
+//gainDB = -90, delayMs = 1, lpHz = 15000, hpHz = 1, spread = 1
+
+~bell = ~scbr.satieGroupInstances[\oceanScene][\bellSnd_6];
+
+
+
+
+SynthDef(\prayer_bell,  ~function  ).add;
+(
+
+~bell.free;
+
+~bell =Synth.new("prayer_bell",  [ \i_doneAction, 0, \decayscale , 0.7,  \muteSecs, 0, \gainDB, 0]);
+
+~bell.set(\note, #[61, 1, 1]);
+)
+
+~bell.set(\t_trig, 1);
+
+
+
+~bell.set(\gainDB, 0);
+
+
+
+// ~bell.set(\note, #[61, 0.9, -1]);
+
+
+~bell.set(\note, #[61, 1, 1]);
+~bell.set(\t_trig, 1);
+
+~bell.set(\note, #[61, 0.0, 0.3]);
+~bell.set(\t_trig, 1);
+
+
+
+
+~bell.set(\amp, 1);
+
+
+~bell.set(\decayscale , 0.7,   \muteSecs, 0)
+
+~bell.set(\t_trig, 1);
+~bell.set(\decayscale, 0.6);
+
+
+
+
+
+
+
+
+
+(
+
+~bell.set(\note, #[61, 0.9, 0.9], \t_trig, 1);
+
+~bell.set(\t_trig, 1);
+~bell.set(\decayscale, 0.1);
+~bell.set(\gainDB, 0);
+
+)
+
+
+
+
+
+
+~nodeName = \coreLoopBuff;
+~nodeName2= \accLoopBuff;
+~noteName3 = \accentsLoopBuff;
+
+
+
+~scbr.satieGroups[\whaleBellyScene].set(\note, #[60,0,0]);
+
+~scbr.satieGroups[\whaleBellyScene].set(\note, #[60,1,0]);
+
+
+
+~node = ~scbr.satieGroupInstances[\whaleBellyScene][\coreLoopBuff];
+
+
+~node.set(\note, #[60,1,1]);
+~node.set(\amp, 6);
+
+~node.set(\transp, -0);
+
+~node.set(\transp, -2);
+
+
+
+
+
+~satie4unity.deleteSource(\bellSnd_1);
+
+~scbr.satieGroups[\oceanScene]
+
+
+~satie4unity.satieAuxBusCount;
+
+
+
+~satie4unity.clearScene()
+
+~satie4unity.allSourceNodes.size()
+
+
+
+~scbr.satieGroups[\oceanScene].freeAll;
+
+~scbr.killSatieGroup(\oceanScene)
+
+
+~scbr.satieGroupInstances[\oceanScene].size()
+
+~scbr.satieGroupInstances[\default][\vStem_61].dump
+
+
+bad values:  15, 26, 29,51, 56,84, 95,
+
+
+~scbr.cleanInstance("bellSnd_3".asSymbol ,\oceanScene );
+
+
+
+~scbr.cleanInstance("bellSnd_5".asSymbol ,\oceanScene );
+
+
+
+
+~bell.free
+
+~scbr.satieGroupInstances[\default]
+
+
+~scbr.satieGroupInstances[\default][vStem_63].free
+
+~scbr.satieGroupInstances[\default][\vStem_18].set(\curve, 6, \warp, 5, \glide, 0, \note, #[60, 1, 1] );
+
+~scbr.satieGroupInstances[\default][\vStem_18].set(\glide, 0, \transp, 0, \startLoop, 0, \endLoop, 999999, \bufnum, b.bufnum, \note, #[60, 1, 1] );
+
+~scbr.satieGroupInstances[\default][\vStem_18].set(\bufnum, b.bufnum);
+
+
+~aqPlayBuffers["vortexDrone.aif".asSymbol]
+
+b
+
+
+
+~scbr.satieGroupInstances[\oceanScene][\bellSnd_2].free
+
+
+
+~scbr.makeInstance(\sheefa, \busgverb, \effect);
+
+~scbr.makeInstance(\sheefa, \busgverb, \default);
+
+		if ( ~scbr.satieGroups[\effect] == nil,
+			{~effectProx = ~scbr.makeSatieGroup(~satieFXgroupSym, \addToTail);}
+		);
+
+
+~satie4unity.allGroupNodes.size()
+
+
+~scbr.aux.size
+"sheefa".size
+
+
+(
+
+~cloneParams =[ \note, [ 60, 1, 1 ], \t_trig, 1 ];
+
+~synthName="drops-95.wav:k:rev".asSymbol;
+x = ~scbr.makeKamikaze(\sheefa, ~synthName, \default, ~cloneParams);
+// x = ~scbr.makeInstance(\sheefa, ~synthName, \default);
+x.set(\gainDB, 0);
+x.set(\t_trig, 1);
+)
+
+
+(
+
+~cloneParams =[ \gainDB, 0, \note, [ 60, 1, 1 ], \t_trig, 1 ];
+
+~synthName="drops-95.wav:k:rev".asSymbol;
+x = ~scbr.makeKamikaze(\sheefa, ~synthName, \default, ~cloneParams);
+
+)
+
+
+	~zombieTrig1_instances.keysDo{ arg key;
+
+		if ( key == ~processName,
+			{
+				key.postln;
+				~satie4unity.allProcesses.at(~processName).at(\synthCountMax).postln;
+		});
+	};
+
+
+
+
+
+(
+~cloneParams =[ \gainDB, 0, \note, [ 60, 1, 1 ], \t_trig, 1 ];
+
+~synthName="drops-95.wav:k:rev".asSymbol;
+
+~incr= 0;
+
+{100.do{ arg item;
+var n = item + ~incr;
+
+	~cloneParams =[ \gainDB, 0, \note, [ 60, (0.3 + (0.7*item)/100),  item/100 ], \t_trig, 1 ];
+
+// ~synthName="drops-"++ n++".wav:k:rev".asString;
+x = ~scbr.makeKamikaze(\sheefa, ~synthName, \default, ~cloneParams);
+
+
+
+
+
+
+	//n.postln;
+			0.1.wait;
+};}.fork
+
+
+)
+
+
+"_______"
+
+
+
 
 ~scbr.satieGroupInstances[\default][\digestion].set(\gainDB, -10);
 
@@ -450,7 +688,15 @@ gainDB
 
 
 
+		~cleanInstance = { | self, name, group = \default |
 
+
+	~scbr.satieGroupInstances[\default][name].release();
+			// fadeTime must be higher than SATIE internal fadeTime:
+			~scbr.satieGroupInstances[group][name].clear(0.03);
+			~scbr.satieGroupInstances[group].removeAt(name);
+			nil;
+		};
 
 
 

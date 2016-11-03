@@ -26,7 +26,7 @@ fi
 
 if [ -z $LISTENING_FORMAT ] ; then
 
-read -p "Enter listening format {sato, labo, octo, quad, or <cr> for stereo} : " QUERY_LISTENING_FORMAT
+read -p "Enter listening format {sato, labo, octo, quad, or <cr> for currentConfig} : " QUERY_LISTENING_FORMAT
 
 fi
 

@@ -37,7 +37,7 @@ fB	 ??  Inharmonicity factor.
 
 ~name = \zkarpluck1;
 
-~function = {  | t_trig=0, c1 = 1, c3=20, fb = 2, note = #[60, 1, 0.5],  i_blockDelay = 2  |   // note: pitch force incidence
+~function = {  | t_trig=0, c1 = 1, c3=20, fb = 2, trimDB = 0, note = #[60, 1, 0.5],  i_blockDelay = 2  |   // note: pitch force incidence
 	var env,inp,son;
 	var freq = note[0].midicps;
 	var amp = note[1].clip(0,1);
@@ -59,7 +59,7 @@ fB	 ??  Inharmonicity factor.
 
 
 	// note:  "gate" arg fixed to constant of 1, to keep plugin alive, "relase" arg not used:
-    son = DWGPluckedStiff.ar(freq, 10, 1 ,pos,idecay,hfqLoss,inp, 1 , fb);
+    son = trimDB.dbamp * DWGPluckedStiff.ar(freq, 10, 1 ,pos,idecay,hfqLoss,inp, 1 , fb);
 	// Out.ar(100, son);
 
 	// suggestion:  add amplitude-based filtering to the final output

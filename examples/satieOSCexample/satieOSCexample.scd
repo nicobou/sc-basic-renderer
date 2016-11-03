@@ -18,7 +18,7 @@
 (
 Server.supernova;
 o = Server.local.options;
-o.numOutputBusChannels = 8;
+o.numOutputBusChannels = 32;
 o.memSize = 2**20;
 o.blockSize = 2048;
 //s.reboot;
@@ -48,7 +48,7 @@ s.waitForBoot {
 	// generate a synth and change its defaults
 	~scbr.makeSynthDef(\pink400, \PinkSin, [\stereoPanner], [0], [], [800]);
 
-	~scbr.makeSynthDef(\testtone, \testtone, [\stereoPanner], [0]);
+	~scbr.makeSynthDef(\testtone, \testtone, [\domeVBAP], [0]);
 	// writing to all aux busses (first is starting a 0):
 	~scbr.makeSynthDef(\string_all_aux, \zkarpluck1, [\stereoPanner], [0], ~scbr.aux);
 	// writing to only to the third audio bus
@@ -57,7 +57,8 @@ s.waitForBoot {
 	~scbr.makeSynthDef(\busreverb, \freeverb, [\stereoPanner], [0]);
 	// mono input
 	~scbr.makeSynthDef(\monoIn, \MonoIn, [\stereoPanner], [0]);
-	~scbr.makeSynthDef(\tastee, \testee, [\octoVBAP], [0]);
+	~scbr.makeSynthDef(\tastee, \testee, [\domeVBAP, \stereoPanner], [0]);
+	~scbr.makeSynthDef(\drone, \misDrone, [\domeVBAP, \stereoPanner], [0]);
 	// streaming a soundfile from disk
 	// - load soundfiles
 	~playBuffers = Dictionary();

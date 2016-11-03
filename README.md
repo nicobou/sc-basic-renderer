@@ -60,6 +60,5 @@ tests
 utils:      diagnostics and other tools
 
 
-NB:  do not reorganize the satie distribution structure, as relative links may fail (including examples and projects)
 
 

@@ -1,4 +1,4 @@
-
+/*
 
 if (w != nil, {w.close});
 
@@ -188,3 +188,4 @@ OSCdef(\presetCallback, ~presetCallback, "/a.renderer/preset", recvPort: 18032);
 
 //~scbr.satieGroups[\default].set(\decay, 0.0, \t_trig, 1)
 
+*/ßßß

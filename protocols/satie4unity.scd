@@ -22,11 +22,11 @@ Satie4Unity's message specification is inspired from the SPATOSC specification  
 for debugguing
 
 ~satie4unity = ~satie4unityprotocol.value(~oscInterface, ~scbr);
+~satie4unity.debugFlag = true;
+~satie4unity = ~satie4unityprotocol.value(~oscInterface, ~scbr);
 
 */
 
-
-// uses GLOBAL VARIABLES:   ~fxInputBus  (defined in projects)
 
 (
 ~satie4unityprotocol = { | oscContext, satieContext, oscID = \satie4unityOSC |
@@ -43,7 +43,11 @@ for debugguing
 		~volume.setVolumeRange(-99, 18);
 		~outputDB = 0;    // current state of the supercollider's output
 		~outputTrimDB = 0;
+		~debugFlag=false;
 
+		~satieAuxBusCount = satie.aux.size;
+
+		// make sure this effcts group is defined since all  uri types "effect://name" are assigned to it
 		if ( satie.satieGroups[\effect] == nil,
 			{~effectProx = satie.makeSatieGroup(\effect, \addToTail);}
 		);
@@ -73,7 +77,8 @@ for debugguing
 								{
 									e.projectDirectory = msg[2];
 
-									e.projectDirectory.postln;
+									//e.projectDirectory.postln;
+									postf("~basicRendererCallback: setProjectDir: % \n", e.projectDirectory);
 
 								}
 							)
@@ -113,6 +118,22 @@ for debugguing
 										{  e.volume.volume = -30;  },
 										// else
 										{  e.volume.volume =  e.outputDB + e.outputTrimDB;   });
+								}
+							)
+						},
+						'freeSynths',
+						{
+							if ( (msg.size < 3 ) ,
+								{"~basicRendererCallback: freeSynths missing group name".warn;
+									// postf("freeSynths MESS LEN: %", msg.size);
+
+								},
+								// else
+								{
+									var groupSym = msg [2] .asSymbol;
+
+									satie.satieGroups[groupSym].freeAll;
+									postf("basicRendererCallback: freeing all synths in % group", groupSym);
 								}
 							)
 						},
@@ -191,6 +212,7 @@ for debugguing
 						// else
 						{
 							var nodeName = msg[2];
+							// "~coreCallback: OSCrx deleteNode CALLED ".warn;
 
 							if (e.allGroupNodes.includesKey(nodeName.asSymbol),
 								{   e.removeGroup(nodeName);  },
@@ -233,75 +255,86 @@ for debugguing
 			type = args[0].asString.split[5].asSymbol;
 			charIndex = connectionName.asString.find("->");
 
+
 			nodeName = connectionName.asString.subStr(0, charIndex-1);
 			//postf("~connectionCallback:  connectionName: %  type: %  size: % args: %\n", connectionName, type, args.size, args);
 
-			thisSynth = e.allSourceNodes[nodeName.asSymbol].at(\synth);
-
-			switch(type,
-				'update',
+			if ( e.allSourceNodes.includesKey(nodeName.asSymbol) == false,
 				{
-					if ( (args.size != 7 ) ,
-						{"connectionCallback: OSCrx update message missing values".warn;},
-						// else
-						{
-							// get values from vector, and write to connectionState
-							aziDeg = args[1].raddeg;
-							eleDeg= args[2].raddeg;
-							gainDB = args[3];
-							delayMs = args[4];
-							lpHz = args[5];
-							distance = args[6];  // not used by basic spatializers
-
-							//DEBUG
-							//~allSourceNodes[nodeName.asSymbol].put(\outDB, gainDB);
-
-
-
-							/*		z = (z+1).mod(20);
-							if ( (z == 0), {postf("\n")});
-							postf("  %  " ++ gainDB.trunc );*/
-
-
-							thisSynth.set(\aziDeg, aziDeg, \eleDeg, eleDeg, \gainDB, gainDB, \delayMs, delayMs, \lpHz, lpHz);
-							//postf("~connectionCallback:  update: gain  % \n", gainDB);
-
-						}
-					)
+					error("*********************************");
+					postf("satie4Unity.connectionCallback:  source node: %  is undefined \n", nodeName);
 				},
-				'hpHz',   //  degree  (0 == noEffect,  1 == full effect)
+				// else all ok
 				{
-					if ( (args.size != 2 ) ,
-						{"connectionCallback: OSCrx hpHz message wrong number of values".warn;},
-						// else
+
+					thisSynth = e.allSourceNodes[nodeName.asSymbol].at(\synth);
+
+
+					switch(type,
+						'update',
 						{
-							// get value from vector, and write to connectionState
-							hpHz = args[1];   // get highpass cutoff value
-							thisSynth.set(\hpHz ,  clip(hpHz, 1, halfSrate ));
+							if ( (args.size != 7 ) ,
+								{"connectionCallback: OSCrx update message missing values".warn;},
+								// else
+								{
+									// get values from vector, and write to connectionState
+									aziDeg = args[1].raddeg;
+									eleDeg= args[2].raddeg;
+									gainDB = args[3];
+									delayMs = args[4];
+									lpHz = args[5];
+									distance = args[6];  // not used by basic spatializers
 
-							//postf("~connectionCallback:  hpHz connectionName: %  type: %  size: % args: %\n", connectionName, type, args.size, args);
-
-						}
-					)
-				},
-				'spread',
-				{
-					if ( (args.size > 0 ) ,
-						{
+									//DEBUG
+									//~allSourceNodes[nodeName.asSymbol].put(\outDB, gainDB);
 
 
-							// invert the spread value (usually an exp) to work with SATIE's VBAP-based spatializer (or others)
-							spread = 100 *  ( 1 - (clip(args[1],0,1)));  // get values from vector, and write to connectionState
 
-							thisSynth.set(\spread, spread);
+									/*		z = (z+1).mod(20);
+									if ( (z == 0), {postf("\n")});
+									postf("  %  " ++ gainDB.trunc );*/
 
-							//postf("~connectionCallback:  SPREAD:  connectionName: %  spread: % \n", connectionName, spread);
 
+									thisSynth.set(\aziDeg, aziDeg, \eleDeg, eleDeg, \gainDB, gainDB, \delayMs, delayMs, \lpHz, lpHz);
+									//postf("~connectionCallback:  update: gain  % \n", gainDB);
+
+								}
+							)
 						},
-						// else
-						{"~connectionCallback: OSCrx spread message with no values".warn; })
-				};
-			);
+						'hpHz',   //  degree  (0 == noEffect,  1 == full effect)
+						{
+							if ( (args.size != 2 ) ,
+								{"connectionCallback: OSCrx hpHz message wrong number of values".warn;},
+								// else
+								{
+									// get value from vector, and write to connectionState
+									hpHz = args[1];   // get highpass cutoff value
+									thisSynth.set(\hpHz ,  clip(hpHz, 1, halfSrate ));
+
+									//postf("~connectionCallback:  hpHz connectionName: %  type: %  size: % args: %\n", connectionName, type, args.size, args);
+
+								}
+							)
+						},
+						'spread',
+						{
+							if ( (args.size > 0 ) ,
+								{
+
+
+									// invert the spread value (usually an exp) to work with SATIE's VBAP-based spatializer (or others)
+									spread = 100 *  ( 1 - (clip(args[1],0,1)));  // get values from vector, and write to connectionState
+
+									thisSynth.set(\spread, spread);
+
+									//postf("~connectionCallback:  SPREAD:  connectionName: %  spread: % \n", connectionName, spread);
+
+								},
+								// else
+								{"~connectionCallback: OSCrx spread message with no values".warn; })
+						};
+					);
+			});
 		};
 		~connectionProcessCallback = {
 
@@ -321,74 +354,81 @@ for debugguing
 
 			nodeName = connectionName.asString.subStr(0, charIndex-1);
 
-
-			// We know this is a sourceProcessingNode since this callback was chosen for this node
-			// so by default, we will update the source's group
-
-			thisGroupName = e.allSourceNodes[nodeName.asSymbol].at(\groupNameSym);  // process nodes have unique groups
-			thisGroup = e.allGroupNodes[thisGroupName].at(\group).group;
-
-			myProcess = e.allSourceNodes[nodeName.asSymbol].at(\process);
-
-
-			//postf("~connectionProcessCallback:  connectionName: %  type: %  size: % args: %\n", connectionName, type, args.size, args);
-
-			switch(type,
-				'update',
+			if ( e.allSourceNodes[nodeName.asSymbol] == nil,
 				{
-					if ( (args.size != 7 ) ,
-						{"connectionProcessCallback: OSCrx update message missing values".warn;},
-						// else
-						{
-							// get values from vector, and write to connectionState
-							aziDeg = args[1].raddeg;
-							eleDeg= args[2].raddeg;
-							gainDB = args[3];
-							delayMs = args[4];
-							lpHz = args[5];
-							distance = args[6];
-
-							if (myProcess[\updateConnection] == nil,
-								{
-
-									//postf("~connectionProcessCallback:  setting update for nodes group %\n", connectionName);
-									// distance not used by standard spatializers
-									thisGroup.set(\aziDeg, aziDeg, \eleDeg, eleDeg, \gainDB, gainDB, \delayMs, delayMs, \lpHz, lpHz);
-								},
-								// else use custom handler
-								{
-									// postf("~connectionProcessCallback:  calling custom update handler for %\n", connectionName);
-									// distance used by custom process functions
-									myProcess[\updateConnection].value(myProcess, aziDeg, eleDeg, gainDB, delayMs, lpHz, distance);
-							});
-
-						}
-					)
+					warn("satie4Unity.connectionCallback:  source node: %  is undefined \n", nodeName);
 				},
-				// 'hpHz',   //  degree  (0 == noEffect,  1 == full effect)  Not implemented yet
-				'spread',
+				// else all ok
 				{
-					if ( (args.size > 0 ) ,
+
+					// We know this is a sourceProcessingNode since this callback was chosen for this node
+					// so by default, we will update the source's group
+
+					thisGroupName = e.allSourceNodes[nodeName.asSymbol].at(\groupNameSym);  // process nodes have unique groups
+					thisGroup = e.allGroupNodes[thisGroupName].at(\group).group;
+
+					myProcess = e.allSourceNodes[nodeName.asSymbol].at(\process);
+
+
+					//postf("~connectionProcessCallback:  connectionName: %  type: %  size: % args: %\n", connectionName, type, args.size, args);
+
+					switch(type,
+						'update',
 						{
-							//postf("~connectionProcessCallback:  connectionName: %  type: %  size: % args: %\n", connectionName, type, args.size, args);
-							spread = args[1];  // get values from vector, and write to connectionState
-
-							if (myProcess[\spread] == nil,
+							if ( (args.size != 7 ) ,
+								{"connectionProcessCallback: OSCrx update message missing values".warn;},
+								// else
 								{
-									postf("~connectionProcessCallback:  setting spread for node's group  %\n", connectionName);
-									thisGroup.set(\spread, spread);
-								},
-								// else use a custom handler
-								{
-									postf("~connectionProcessCallback:  calling custom spread handler for %\n", connectionName);
-									myProcess[\spread].value(myProcess, spread);
+									// get values from vector, and write to connectionState
+									aziDeg = args[1].raddeg;
+									eleDeg= args[2].raddeg;
+									gainDB = args[3];
+									delayMs = args[4];
+									lpHz = args[5];
+									distance = args[6];
 
-							});
+									if (myProcess[\updateConnection] == nil,
+										{
+
+											//postf("~connectionProcessCallback:  setting update for nodes group %\n", connectionName);
+											// distance not used by standard spatializers
+											thisGroup.set(\aziDeg, aziDeg, \eleDeg, eleDeg, \gainDB, gainDB, \delayMs, delayMs, \lpHz, lpHz);
+										},
+										// else use custom handler
+										{
+											// postf("~connectionProcessCallback:  calling custom update handler for %\n", connectionName);
+											// distance used by custom process functions
+											myProcess[\updateConnection].value(myProcess, aziDeg, eleDeg, gainDB, delayMs, lpHz, distance);
+									});
+
+								}
+							)
 						},
-						// else
-						{"~connectionProcessCallback: OSCrx spread message with no values".warn; })
-				};
-			);
+						// 'hpHz',   //  degree  (0 == noEffect,  1 == full effect)  Not implemented yet
+						'spread',
+						{
+							if ( (args.size > 0 ) ,
+								{
+									//postf("~connectionProcessCallback:  connectionName: %  type: %  size: % args: %\n", connectionName, type, args.size, args);
+									spread = args[1];  // get values from vector, and write to connectionState
+
+									if (myProcess[\spread] == nil,
+										{
+											//postf("~connectionProcessCallback:  setting spread for node's group  %\n", connectionName);
+											thisGroup.set(\spread, spread);
+										},
+										// else use a custom handler
+										{
+											//postf("~connectionProcessCallback:  calling custom spread handler for %\n", connectionName);
+											myProcess[\spread].value(myProcess, spread);
+
+									});
+								},
+								// else
+								{"~connectionProcessCallback: OSCrx spread message with no values".warn; })
+						};
+					);
+			});
 		};
 		~sourceNodeCallback = {
 			| args |
@@ -578,7 +618,7 @@ for debugguing
 		};
 
 
-		~createSource = {| self, sourceName, uriName , groupName = \default |
+		~createSource = {| self, sourceName, uriPath , groupName = \default |
 			//"createSource called".inform;
 			if (self.allSourceNodes.includesKey(sourceName),
 				{
@@ -587,17 +627,15 @@ for debugguing
 				// else create new node
 				{
 					var type;
-					type = self.uriType(uriName);
+					type = self.getUriType(uriPath);
 
-					switch( type,
-						"plugin", {
-							self.createSourceNode(sourceName.asSymbol, uriName,groupName )
-						},
-						"process", {
-							self.createSourceProcess(sourceName.asSymbol, uriName,groupName )
-						},
-						// "file", {~setSynth.value(name, uriPath)}  not implemented yet
-					);
+					if ( type == "process",  {
+						self.createSourceProcess(sourceName.asSymbol, uriPath,groupName );
+					},
+					// else
+					{
+						self.createSourceNode(sourceName.asSymbol, uriPath,groupName );
+					});
 				}
 			);
 		};
@@ -618,7 +656,7 @@ for debugguing
 			var rawArgVec = nil;
 			var argList = List[];
 
-			("~createSourceProcess:  URI"++uriPath).postln;
+			//("~createSourceProcess:  URI"++uriPath).postln;
 
 			// sheefa = uriPath;
 
@@ -649,7 +687,7 @@ for debugguing
 						},
 						// else node good to go
 						{
-							postf("~createSourceProcess nodeName: %,   process name: %\n", sourceName, processName);
+							postf("~createSourceProcess nodeName: %,   process name: %  URI: % \n", sourceName, processName, uriPath);
 							//postf("~createSourceProcess: %:  uri: %  group: %\n", sourceName, uriPath, groupName);
 
 							self.allSourceNodes[sourceName.asSymbol] = Dictionary();   // create node  -- create node-specific dict.
@@ -688,8 +726,15 @@ for debugguing
 		};
 
 
-		~createSourceNode = { | self, sourceName, uriName , groupName = \default |
+		~createSourceNode = { | self, sourceName, uriString , groupName = \default, argsList|
 			var synthName;
+
+			var type;
+
+			// MAKE SURE URI STRING IS VALID -- if not, will post warning and be set to plugin://dummyPlugin
+			uriString = self.checkUri(sourceName, uriString);
+
+			type = self.getUriType(uriString);
 
 			if (groupName == "", { groupName = \default; });   // make sure group name is ok
 
@@ -701,53 +746,26 @@ for debugguing
 				}
 			);
 
-			postf("~createSourceNode: %:  uri: %  group: %\n", sourceName, uriName, groupName);
+			postf("~createSourceNode: %:  uri: %  group: %\n", sourceName, uriString, groupName);
 			self.allSourceNodes[sourceName.asSymbol] = Dictionary();   // create node  -- create node-specific dict.
 			self.allSourceNodes[sourceName.asSymbol].put(\plugin, \nil);
-
-			// handle any aux send issues here
-			if ( groupName == \effect,
-				{
-					postf("~createSource:  CREATING EFFECTS SOURCE for:%\n", sourceName.asSymbol);
-
-					if (~fxInputBus == nil,    // this should be defined previously in the project's .scd
-						{
-							postf("~createSource:  ~fxInputBus not defined");
-							~fxInputBus = 0;
-					});
-
-					// this is an effects node, so save its aux bus assign
-					self.allSourceNodes[sourceName.asSymbol].put(\auxBus, satie.aux[~fxInputBus]);  //  HACK to set up effects send node
-			});
+			self.allSourceNodes[sourceName.asSymbol].put(\uriStr, uriString);
 
 			// now set node's group
 			self.allSourceNodes[sourceName.asSymbol].put(\groupNameSym, groupName.asSymbol);
 
-			// call ~setUri to complete instance creation
-			//~setUri.value(sourceName.asSymbol,uriName.asSymbol);
+			// call  setSynth to complete instance creation
+			// note:  setSynth acts on URI
 
-			// now set up synth
-			if (uriName.asString.contains("plugin://") == false,
+			if ( ( (type != "plugin") &&  (type != "effect") ),
 				{
-					warn("~createSource: WARNING: node: %  bad URI format : %,  setting to \dummyPlugin", sourceName, uriName);
+					error("~createSourceNode: BUG FOUND IN CODE:   URL SHOULD BE OK" );
 					self.setSynth(sourceName.asSymbol, \dummyPlugin);
 				},
-				// else  // path ok, proceed
+				// else  // path format ok, proceed
 				{
-					var charIndex = uriName.asString.find("://");
-					var temp = uriName.asString.subStr(charIndex);
-					var type = uriName.asString.subStr(0, charIndex-1);
-					synthName = temp.asString.replace("://", "");
-
-					//postf("~setUri nodeName: %, type: %  plugName: %\n", uriName, type, uriPath);
-					// still needs to be expanded for soundfiles, adc, web etc..
-					switch( type,
-						"plugin", {
-							self.setSynth(sourceName.asSymbol, synthName)
-
-						},
-						// "file", {~setSynth.value(name, uriPath)}  not implemented yet
-					);
+					synthName = self.getUriName(uriString);
+					self.setSynth(sourceName.asSymbol, synthName);
 			});
 			osc.sourceOSC(sourceName.asSymbol, e.['sourceNodeCallback']);   // create OSC callback
 			//"createSourceNode called".inform;
@@ -802,46 +820,56 @@ for debugguing
 			var connectionName, myProcess;
 			//postf("createConnection:  for source % and listener % \n", sourceName, listenerName);
 
-
-			//~sheefa.allSourceNodes[\srcNode];
-
 			connectionName = sourceName ++ "->" ++ listenerName;
-			myProcess = self.allSourceNodes[sourceName.asSymbol].at(\process);
+			myProcess = nil;
 
 
-			if (  self.allSourceNodes.includesKey(sourceName.asSymbol) == false ,
-				// source not defined  ???
+			if ( self.allSourceNodes.includesKey(sourceName.asSymbol) == false,
 				{
-					postf("warning: ~createConnection: SOURCE % not defined \n", sourceName);
-			});
-
-			if ( self.allSourceNodes[sourceName.asSymbol].includesKey(\connectionName),
-				{
-					'~createConnection:  connection already exists, no action taken'.postln;
+					error("*******************");
+					postf("bug:  satie4Unity.createConnection: node % not defined, can not establish connection \n", sourceName.asString);
 				},
-				// else create new one,  and a corresponding OSC callback
+				// else
 				{
-					self.allSourceNodes[sourceName.asSymbol].put(\connectionName, connectionName.asSymbol);
+					myProcess = self.allSourceNodes[sourceName.asSymbol].at(\process);
 
-					// is this a processNode ?
-					if ( myProcess != nil,
+					if ( self.allSourceNodes[sourceName.asSymbol].includesKey(\connectionName),
 						{
-							postf("~createConnection: creating Custom update callback for  %  ", sourceName.asSymbol);
-							osc.connectionOSC(self.allSourceNodes[sourceName.asSymbol].at(\connectionName), e.['connectionProcessCallback']);
+							'~createConnection:  connection already exists, no action taken'.postln;
 						},
-						//else  regular source node, set up standard connection callback
+						// else create new one,  and a corresponding OSC callback
 						{
-							osc.connectionOSC(self.allSourceNodes[sourceName.asSymbol].at(\connectionName), e['connectionCallback']);
+							self.allSourceNodes[sourceName.asSymbol].put(\connectionName, connectionName.asSymbol);
+
+							// is this a processNode ?
+							if ( myProcess != nil,
+								{
+									postf("~createConnection: creating Custom update callback for  %  \n", sourceName.asSymbol);
+									osc.connectionOSC(self.allSourceNodes[sourceName.asSymbol].at(\connectionName), e.['connectionProcessCallback']);
+								},
+								//else  regular source node, set up standard connection callback
+								{
+									osc.connectionOSC(self.allSourceNodes[sourceName.asSymbol].at(\connectionName), e['connectionCallback']);
+							});
+
+							// postf("~createConnection: creating callback for  %  ", ~allSourceNodes[sourceName.asSymbol].at(\connectionName));
 					});
-
-					// postf("~createConnection: creating callback for  %  ", ~allSourceNodes[sourceName.asSymbol].at(\connectionName));
 			});
-
-
 		};
+
 		~setSynth = { 	| self, nodeName, pluginName |
 			var validPluginName = pluginName;
-			var groupName = self.allSourceNodes[nodeName.asSymbol].at(\groupNameSym);
+			var sourceNode = self.allSourceNodes[nodeName.asSymbol];
+			var groupName = sourceNode.at(\groupNameSym);
+			var type;
+			var inBus;
+
+			var uriPath = sourceNode.at(\uriStr);
+
+			type = self.getUriType( uriPath );
+
+
+			//postf("~setSynth: node: %   uriStr: %  type: % \n",  nodeName, uriPath,   type);
 
 			//postf("~setSynth: node: %    NEW: %  CURRENT: % \n", nodeName, pluginName.asSymbol, self.allSourceNodes[nodeName.asSymbol].at(\plugin).asSymbol);
 
@@ -861,27 +889,22 @@ for debugguing
 							satie.cleanInstance(nodeName.asSymbol,groupName.asSymbol );
 					});
 
-					self.allSourceNodes[nodeName.asSymbol].put(\plugin, validPluginName.asSymbol);
+					sourceNode.put(\plugin, validPluginName.asSymbol);
 
 
-					if ( groupName.asSymbol == \default,
+					if ( ( (type == "effect") || (groupName == \effect) ),
 						{
-							synth = satie.makeInstance(nodeName.asSymbol, validPluginName.asSymbol);  // just being careful, but the call below should work for this too
+							inBus = self.getFxInBus(uriPath);
+							postf("~setSynth: assigning inBus: % to effects node % \n", satie.aux[inBus] , nodeName);
+							synth = satie.makeInstance(nodeName.asSymbol, validPluginName.asSymbol, \effect, [\in, satie.aux[inBus] ]);
 						},
+						// else
 						{
 							synth = satie.makeInstance(nodeName.asSymbol, validPluginName.asSymbol, groupName.asSymbol);
-
-					});
-
-					// now if its a node that has an aux send assign, it must be an effects node, so set its synth param with the aux bus number
-					if ( self.allSourceNodes[nodeName.asSymbol].at(\auxBus) != nil,
-						{
-							synth.set(\in, self.allSourceNodes[nodeName.asSymbol].at(\auxBus) );
 					});
 
 
-
-					self.allSourceNodes[nodeName.asSymbol].put(\synth, synth);
+					sourceNode.put(\synth, synth);
 				},
 				{
 					//postf("~setSynth: ignoring set plugin % for node % : plugin already set \n", pluginName, nodeName);
@@ -890,41 +913,37 @@ for debugguing
 			//"setSynth called".inform;
 
 		};
+
+
+		// valid URIs:   process://name  args
+		//	 effect://synthName   <opt> inBus n     // defaults to  inBus=0
+		// plugin://synthName
 		~setUri = { | self, nodeName, uriPath |
-			var charIndex, uriName, type, temp;
-			//"setUri called".inform;
+			var charIndex, type, temp;
+			var synthName = \dummyPlugin;  // default
+			var node = self.allSourceNodes[nodeName.asSymbol];
+			var inBus;
 
-			// type://name (i.e. plugin://DustDust, file://<path>
+			uriPath = self.checkUri(nodeName, uriPath);     // make sure uri is valid, otherwise assigns to "plugin://dummyPlugin"
+			node.put(\uriStr, uriPath);
 
-			// check URI name to make sure its valid
+			type = self.getUriType(uriPath);
 
-			if (uriPath.asString.contains("plugin://") == false,
-				{
-					postf("~setUri: WARNING: node: %  bad URI format : %,  setting to \dummyPlugin", nodeName, uriPath);
-					self.setSynth(nodeName.asSymbol, \dummyPlugin);
+			//postf("~setUri nodeName: %, type: %  plugName: %\n", synthName, type, uriPath);
+			// still needs to be expanded for soundfiles, adc, web etc..
+
+			switch( type,
+				"plugin", {
+					synthName = self.getUriName(uriPath);
 				},
-
-				// else  // path ok, proceed
-				{
-					charIndex = uriPath.asString.find("://");
-
-					temp = uriPath.asString.subStr(charIndex);
-					type = uriPath.asString.subStr(0, charIndex-1);
-					uriName = temp.asString.replace("://", "");
-
-					//postf("~setUri nodeName: %, type: %  plugName: %\n", uriName, type, uriPath);
-					// still needs to be expanded for soundfiles, adc, web etc..
-					switch( type,
-						"plugin", {
-							self.setSynth(nodeName.asSymbol, uriName)
-
-						},
-						// "file", {~setSynth.value(name, uriPath)}  not implemented yet
-					);
-			});
-
-
+				"effect", {
+					synthName = self.getUriName(uriPath);
+				}
+			);
+			self.setSynth(nodeName.asSymbol, synthName);
 		};
+
+
 		~setProperty = { | self, nodeName, property, value |
 			var thisSynth = self.allSourceNodes[nodeName.asSymbol].at(\synth);
 			//"setProperty called".inform;
@@ -932,11 +951,6 @@ for debugguing
 
 			thisSynth.set(property.asSymbol, value);
 		};
-
-
-
-
-		//~setGroupProperty = {};
 
 		~setGroupProperty = { | self, groupName, property, value |
 			var group = self.allGroupNodes[groupName.asSymbol].at(\group).group;
@@ -947,29 +961,14 @@ for debugguing
 		};
 
 
-
-
 		~setState = { | self, nodeName,  state |
 			var thisSynth = self.allSourceNodes[nodeName.asSymbol].at(\synth);
 
 			thisSynth.run(state);
 
-			// "setState called".inform;
-			/*		if ( (state > 0),
-			{
-			satie.makeInstance(nodeName.asSymbol, ~allSourceNodes[nodeName.asSymbol].at(\plugin).asSymbol, thisGroupSym);
-			},
-			//else turn state off
-			{
-			satie.pauseInstance.value(nodeName.asSymbol, thisGroupSym );
-			}
-			);*/
-			//postf("~setState: seting state of % to %\n", nodeName, state);
 
-
+			if (self.debugFlag, {postf("~setState: seting state of % to %\n", nodeName, state)});
 		};
-
-		//~setGroupEvent = { "setGroupEvent called".warn; };
 
 		// events RX:   /spatosc/core/source/nodename/event eventName v1...vN
 		~setGroupEvent = { | self, groupName, eventName,  args |
@@ -1107,14 +1106,14 @@ for debugguing
 
 		};
 		~deleteSource = { | self, nodeName |
-			"deletaSource called".inform;
+			//"deletaSource called".inform;
 			if ( self.allSourceNodes.includesKey(nodeName.asSymbol) ,
 				{
 					// if its a sourceProcessNode do this first
 
 
 					self.clearSourceNode(nodeName.asSymbol);
-					//	'REMOVE NODE'.postln;
+					//'REMOVE NODE'.postln;
 					self.allSourceNodes.removeAt(nodeName.asSymbol);     // remove node from global dictionary
 			});
 		};
@@ -1161,7 +1160,6 @@ for debugguing
 			var thisGroupName = self.allSourceNodes[nameSym].at(\groupNameSym);
 			//"clearSourceNode called".inform;
 
-			// postf("clearSourceNode: delete  node  %\n", nameSym);
 			//self.allSourceNodes[nameSym].postln;
 
 			// is this a process node?
@@ -1172,11 +1170,13 @@ for debugguing
 					var myProcess = self.allSourceNodes[nameSym].at(\process);
 
 
+
 					// now kill off the clones in that group
 					//myProcess.at(\nodeGroupProxy).free;
 
 					myProcess.cleanup();   // frees any state the process may have created, i.e. synths
 
+					//  IF THE SYNTH IS NOT CLEANED FROM THE NODE TREE, DO THE SAME AS THE REGULAR SOURCE CASE BELOW
 					satie.cleanInstance(nameSym,thisGroupName );
 
 					// now delete group
@@ -1185,7 +1185,10 @@ for debugguing
 				},
 				// else  its just a regular source
 				{
+					var synth = satie.satieGroupInstances[thisGroupName][nameSym];
 					satie.cleanInstance(nameSym,thisGroupName );
+					synth.free;    // to make sure it gets cleaned from the node tree
+					if (self.debugFlag, {postf("clearSourceNode: delete  node  % in group %\n", nameSym, thisGroupName);});
 
 			});
 
@@ -1206,11 +1209,19 @@ for debugguing
 			};
 		};
 
+		~getUriName = { |  self, uriPath |
+			var stringArray = uriPath.asString.split($ );
+			var charIndex = uriPath.asString.find("://");
+			var temp = uriPath.asString.subStr(charIndex);
+			var uriName = temp.asString.replace("://", "");
 
-		~uriType = { | self, uriPath |
+			uriName.asString.split($ )[0].asString;
+		};
+
+		~getUriType = { | self, uriPath |
 			var charIndex, uriName, type, temp;
 
-			type = nil;
+			type = "";
 
 			// type://name (i.e. plugin://DustDust, file://<path>
 
@@ -1218,8 +1229,7 @@ for debugguing
 
 			if (uriPath.asString.contains("://") == false,
 				{
-					error("~getUriSym:  uri type format error: % ", uriPath);
-
+					if (uriPath.size > 0, {warn("~getUriType:  uri type format error: % ", uriPath);});
 				},
 
 				// else  // path ok, proceed
@@ -1233,6 +1243,90 @@ for debugguing
 			type;
 		};
 
+		~getUriArgs = { |self, uriPath  |
+			var temp,charIndex, processName;
+			var argsString = "";
+			var stringArray;
+			var rawArgVec = nil;
+			var argList = List[];
+
+			//("~getUriArgs:  URI: "++uriPath).postln;
+
+			// sheefa = uriPath;
+
+			stringArray = uriPath.asString.split($ );
+
+			if (stringArray.size < 2,
+				{
+					[];
+				},
+				{
+
+					charIndex = stringArray[0].asString.find("://");
+					processName = stringArray[0].asString.subStr(charIndex+3);
+
+					argsString = uriPath.asString.subStr(stringArray[0].size+1);
+
+					//argsString.postln;
+
+					rawArgVec= argsString.asString.split($ );
+					// make list of items in argString
+					rawArgVec.do( { arg item;
+						if ( item != "",
+							{
+								argList.add(item);
+						});
+					})
+			});
+		};
+
+		// no error checking, must not be called on empty node, or non-effects-type node
+		// uriPath  eg:   effect://reverb satieAuxBus 3
+		~getFxInBus = { | self, uriPath |
+			var synth;
+			var auxBus = 0;  //default bus
+			var satieBus;
+
+
+			var argList = self.getUriArgs(uriPath);
+
+			//("~getFxInBus:  URI: "++uriPath).postln;
+
+
+			// if there are two args, and the first arg is the keyword "inBus"then try to set the effect's \in param to the second arg
+			if (argList.size > 1,
+				{
+					if (argList[0].asString == "inBus",
+						{
+							auxBus = argList[1].asInt.clip(0, self.satieAuxBusCount-1);
+					});
+			});
+
+			auxBus;  // returns auxBus for effects node
+
+			//	satieBus = satie.aux[auxBus];
+			//synth = self.allSourceNodes[nodeName.asSymbol].get(\synth);
+			//synth.set(\in, auxBus);
+			//synth.set(\in, satieBus );
+			//postf("~setFxInBus: setting Aux Bus in %   % for effects node % \n", auxBus, uriPath, nodeName);
+		};
+
+
+		// if URI is ok, returns uriString, else   "plugin://dummyPlugin"
+		~checkUri = { | self, nodeName, uriString |
+			var type = self.getUriType(uriString);
+
+			//uriString.postln;
+			if ( (type != "plugin") && (type != "effect"),
+				{
+					error("~checkUri:  node: %  bad URI: % , using default: plugin://dummyPlugin \n", nodeName, uriString);
+
+					"plugin://dummyPlugin"
+				},
+				{
+					uriString;
+			});
+		};
 
 		// DEBUGGING FUNCTIONS
 		~dumpConnections = { 	| self |

@@ -115,7 +115,7 @@ if (~particule4_pitchSequences == nil,
 			if ( argsList[0].asString == "cloneCount",
 				{
 					self.cloneCount = argsList[1].asInt.clip(1, 1000);   // clip to 1000 to avoid meltdown caused by error
-					postf(" particule4.setup: node: %   setting up for % kamakazi clones \n", nodeName, self.cloneCount);
+					postf(" particule4.setup: node: %   setting up for % preallocated clones \n", nodeName, self.cloneCount);
 				},
 				// else bad arg
 				{
@@ -220,7 +220,6 @@ if (~particule4_pitchSequences == nil,
 
 			// kind of stupid ti assert thus value t wat
 			// NO GROUP TX  IN THIS CASE:   thisGroup.set(\randTrigMaxMs, self.triggerIntervalMs);
-			// kamakazi must be fully parameterized at creation
 
 
 			seqName = self.pitchSeqSym;

@@ -30,7 +30,8 @@ using System.Linq;
 //    string message { get; set; }
 //}
 
-public class SATIEnode : MonoBehaviour {
+public class SATIEnode : MonoBehaviour
+{
 
     public bool debug = false;
 
@@ -41,51 +42,57 @@ public class SATIEnode : MonoBehaviour {
 
 
 
-    public string uri = "plugin://default";
-
-    public string AssetPath = "unused";   // subdirectory of Assets/StreamingAssets
+ 
+    public string AssetPath = "unused";
+    // subdirectory of Assets/StreamingAssets
     private string _assetPath = "";
 
-     
+    public string uri = "plugin://default";
+
+    public List <string> PropertyMessages = new List<string>();
+    private List <string> _PropertyMessages = new List<string>();
+    // used to detect changes in the Inspector
+
+    [Header("Node Update Settings")]
+	 
    
     public bool UpdateUsingChangeThresh = false;
-    public float angleThresh = 5f; 
-    public float movementThresh = .05f; 
+    public float angleThresh = 5f;
+    public float movementThresh = .05f;
     private float _movementThreshSqu;
  
-    public List <string> PropertyMessages = new List<string>();
-    private List <string> _PropertyMessages = new List<string>();  // used to detect changes in the Inspector
 
     // used internally for node's scenegraph update status
-    private Quaternion  _lastSpatUpdateRotation;
+    private Quaternion _lastSpatUpdateRotation;
     private Vector3 _lastSpatUpdatePos;
     private Vector3 _lastPos;
     private Quaternion _lastRot;
     //private float _lastUpdateTime = 0f;
     
-	[HideInInspector] 
-	public bool updateRotFlag = false;
-
-	[HideInInspector] 
-	public bool updatePosFlag = false;
+    [HideInInspector] 
+    public bool updateRotFlag = false;
 
     [HideInInspector] 
-	public static List<SATIEnode> sourceInsatances = new List<SATIEnode>();
+    public bool updatePosFlag = false;
 
     [HideInInspector] 
-	public static List<SATIEnode> listenerInsatances = new List<SATIEnode>();
+    public static List<SATIEnode> sourceInsatances = new List<SATIEnode>();
 
-	[HideInInspector] 
-	public static List<SATIEnode> groupInsatances = new List<SATIEnode>();
+    [HideInInspector] 
+    public static List<SATIEnode> listenerInsatances = new List<SATIEnode>();
+
+    [HideInInspector] 
+    public static List<SATIEnode> groupInsatances = new List<SATIEnode>();
 
 
     [HideInInspector] 
-    static public int nodeCount = 0;  //  nodes cereated since game start 
+    static public int nodeCount = 0;
+    //  nodes cereated since game start
     
     [HideInInspector] 
     public string nodeName = "noName";
     
-    //[HideInInspector] 
+    //[HideInInspector]
     //public int nodeNo;
 
     [HideInInspector] 
@@ -94,12 +101,13 @@ public class SATIEnode : MonoBehaviour {
 
 
     // called when inspector's values are modified
-	public virtual void OnValidate()
+    public virtual void OnValidate()
     {
 
-        if (! _start ) return;
+        if (!_start)
+            return;
   
-       // Debug.LogError("SATIEnode.OnValidate() for source: " + nodeName);
+        // Debug.LogError("SATIEnode.OnValidate() for source: " + nodeName);
 
 
         if (_state != nodeEnabled)
@@ -112,7 +120,7 @@ public class SATIEnode : MonoBehaviour {
 
         if (_PropertyMessages.Count != PropertyMessages.Count)
         {
-           // Debug.Log("_PropertyMessages.Count != PropertyMessages.Count");
+            // Debug.Log("_PropertyMessages.Count != PropertyMessages.Count");
 
 
             _PropertyMessages.Clear();
@@ -123,12 +131,12 @@ public class SATIEnode : MonoBehaviour {
             return;
         }
 
-        for (int i=0; i<PropertyMessages.Count; i++)
+        for (int i = 0; i < PropertyMessages.Count; i++)
         {
-           // Debug.Log("PropertyMessages [i]:  " + PropertyMessages [i]);
-            if (PropertyMessages [i] != _PropertyMessages [i])
+            // Debug.Log("PropertyMessages [i]:  " + PropertyMessages [i]);
+            if (PropertyMessages[i] != _PropertyMessages[i])
             {
-                List<string> property = new List<string>(PropertyMessages [i].Split(' '));
+                List<string> property = new List<string>(PropertyMessages[i].Split(' '));
                 string keyword = "";
                 string svalue = "";
  
@@ -137,15 +145,15 @@ public class SATIEnode : MonoBehaviour {
                 // remove spaces
                 for (int n = 0; n < property.Count; n++)
                 {
-                    if ( keyword == "" && property[n] != "")  
+                    if (keyword == "" && property[n] != "")
                     {
                         keyword = property[n];
 
                         // if (n == property.Count) break;
 
-                        for (int t = n+1; t < property.Count; t++)
+                        for (int t = n + 1; t < property.Count; t++)
                         {
-                            if ( svalue == "" && property[t] != "")
+                            if (svalue == "" && property[t] != "")
                             {
                                 svalue = property[t];
                                 break;
@@ -160,7 +168,7 @@ public class SATIEnode : MonoBehaviour {
                 //            foreach (string item in property)   Debug.Log("\t PROPERTY ATOM: " + item);       
 
                 // if incomplete property abort
-                if (keyword == "" || svalue == "") 
+                if (keyword == "" || svalue == "")
                 {
                     //Debug.Log("propseryMessage too short:  " + PropertyMessages [i]);
                     return;
@@ -168,7 +176,7 @@ public class SATIEnode : MonoBehaviour {
 
                 // else the property is valid
 
-               // rewrite property without white spaces
+                // rewrite property without white spaces
                 PropertyMessages[i] = keyword + " " + svalue;
 
                 _PropertyMessages[i] = PropertyMessages[i];
@@ -176,17 +184,17 @@ public class SATIEnode : MonoBehaviour {
 
                 //Debug.Log("MODIFIED PROPERTY: "+keyword+" : "+svalue);
                 
-                if (keyword != " "  && svalue != " "  && svalue != ".")
+                if (keyword != " " && svalue != " " && svalue != ".")
                 {
                     //Debug.Log("\t \t \t sendOSCprop: "+keyword+" : "+ svalue);
                     sendOSCprop(keyword, svalue);
                 }
-           }
+            }
         }
-     }
+    }
 
 
-    public virtual  void Awake () 
+    public virtual  void Awake()
     {
         _start = false;
 
@@ -197,33 +205,33 @@ public class SATIEnode : MonoBehaviour {
         if (uri == "")
         {
             uri = "plugin://default";
-            Debug.LogWarning("SATEnode.Awake: node:"+ nodeName +" URI string is empty, setting URI to default plugin");
+            Debug.LogWarning("SATEnode.Awake: node:" + nodeName + " URI string is empty, setting URI to default plugin");
         }
     }
 
 
 	
-	public virtual  void Start () 
+    public virtual  void Start()
     {
         _start = true;
 
         // createNode(); must have already been called from subclass "Start()" method
         _lastRot = _lastSpatUpdateRotation = (Quaternion)transform.rotation;
-        _lastPos =  _lastSpatUpdatePos = transform.position;
+        _lastPos = _lastSpatUpdatePos = transform.position;
         _movementThreshSqu = movementThresh * movementThresh;
 
 
-       // Vector3 orientation = transform.rotation.eulerAngles;
+        // Vector3 orientation = transform.rotation.eulerAngles;
         //SATIEsetup.setPositionWrapper(nodeName,transform.position.x, transform.position.y, transform.position.z);
         //SATIEsetup.setOrientation(nodeName, orientation.x, orientation.y, orientation.z);
         //StartCoroutine(testTrigger());
 
-       // Debug.Log("SATIEnode.Start:  AssetPath = " + _assetPath);
-		//updatePosFlag = true;  
-		//updateRotFlag = true;
-       // Debug.LogError("SATIEnode.Start() for source: " + nodeName);
+        // Debug.Log("SATIEnode.Start:  AssetPath = " + _assetPath);
+        //updatePosFlag = true;  
+        //updateRotFlag = true;
+        // Debug.LogError("SATIEnode.Start() for source: " + nodeName);
     }
-	
+
 
     void OnEnable()
     {
@@ -267,104 +275,104 @@ public class SATIEnode : MonoBehaviour {
             //return false;
         }
 
-		List <SATIEnode> nodeList = new List<SATIEnode>();
+        List <SATIEnode> nodeList = new List<SATIEnode>();
 
 
-		switch(nodeType)
-		{
-		case "listener" :
-			nodeList = listenerInsatances;
-			break;
-		case "source" :
-			nodeList = sourceInsatances;
-			break;
-		case "group" :
-			nodeList = groupInsatances;
-			break;
-		}
+        switch (nodeType)
+        {
+            case "listener":
+                nodeList = listenerInsatances;
+                break;
+            case "source":
+                nodeList = sourceInsatances;
+                break;
+            case "group":
+                nodeList = groupInsatances;
+                break;
+        }
 
-		foreach (SATIEnode node in nodeList )
-		{
-			if (transform.name == node.name)
-			{
-				transform.name = transform.name + "_" + transform.GetInstanceID();  
-				Debug.LogWarning("SATIEnode: initNode:  duplicate node name found. Renaming node: "+ transform.name);
-			}
-		}
-		nodeList.Add( (SATIEnode) this);
+        foreach (SATIEnode node in nodeList)
+        {
+            if (transform.name == node.name)
+            {
+                transform.name = transform.name + "_" + transform.GetInstanceID();  
+                Debug.LogWarning("SATIEnode: initNode:  duplicate node name found. Renaming node: " + transform.name);
+            }
+        }
+        nodeList.Add((SATIEnode)this);
 
 
         //nodeNo = nodeCount++;
 
-		if (!uri.Equals(""))
-		{
-			if (AssetPath != "" && AssetPath != "unused")   // insert the full path in the URI message
-			{
-				_assetPath = Application.streamingAssetsPath + Path.DirectorySeparatorChar + AssetPath;
+        if (!uri.Equals(""))
+        {
+            if (AssetPath != "" && AssetPath != "unused")   // insert the full path in the URI message
+            {
+                _assetPath = Application.streamingAssetsPath + Path.DirectorySeparatorChar + AssetPath;
 				
-				uriString = uri.Replace("//", "//" + _assetPath + Path.DirectorySeparatorChar);
-			} else
-				uriString = uri;
+                uriString = uri.Replace("//", "//" + _assetPath + Path.DirectorySeparatorChar);
+            }
+            else
+                uriString = uri;
 			
 
-		}
-		else 
-			uriString = "";
+        }
+        else
+            uriString = "";
         //Debug.Log("********************************************initNode: node: "+transform.name+"   URI : " + uriString);
             
 
 
-		//Debug.Log("URI STRING: "+uriString);
+        //Debug.Log("URI STRING: "+uriString);
 
-		if (nodeType == "listener" )
+        if (nodeType == "listener")
         {
             nodeName = transform.name; // + "_" + nodeNo;
             result = SATIEsetup.createListener(nodeName, uriString);
-			sendUri( uriString); // not really used but .....
+            sendUri(uriString); // not really used but .....
         } 
 
 		// this should be done in the superclass-- 
-		else if (nodeType == "source" )
+		else if (nodeType == "source")
         {
-			SATIEsource src = (SATIEsource) this;
+            SATIEsource src = (SATIEsource)this;
 
-			// go agead an make this node with this group name, even if the group has not been created yet
-			//string groupName = "";
+            // go agead an make this node with this group name, even if the group has not been created yet
+            //string groupName = "";
 //
 //			if (gameObject.tag != "Untagged")  
 //				groupName = gameObject.tag;
 
             nodeName = transform.name;  // + "_" + nodeNo;
             result = SATIEsetup.createSource(nodeName, uriString, src.group);
-             //sendUri(uriString);   //NO NEED TO DO THIS NOW THAT THE URI IS CREATED WITH THE SOURCE
-			//Debug.Log("******************************************SATIEnode.initNode: source nodename; "+nodeName+"  groupName: "+ src.group);
-		}
-		else if (nodeType == "group" )
-			
-		{
-			// do nothing, this is done in the group class
-		}
-		else 
-		{
-			Debug.LogWarning("SATIEnode.initNode: nodetype not recognized");
-			return false;
-		}
+            //sendUri(uriString);   //NO NEED TO DO THIS NOW THAT THE URI IS CREATED WITH THE SOURCE
+            //Debug.Log("******************************************SATIEnode.initNode: source nodename; "+nodeName+"  groupName: "+ src.group);
+        }
+        else if (nodeType == "group")
+        {
+            // do nothing, this is done in the group class
+        }
+        else
+        {
+            Debug.LogWarning("SATIEnode.initNode: nodetype not recognized");
+            return false;
+        }
 
         _state = nodeEnabled;
         // moved to initProperties
 //       setNodeActive(nodeName, nodeEnabled);
         
-      //Debug.Log("SATIEnode.Update: CREATING SPAT_OSCNODE: "+nodeName);
+        //Debug.Log("SATIEnode.Update: CREATING SPAT_OSCNODE: "+nodeName);
 
-       //sendProperties();
+        //sendProperties();
 
-       SATIEsetup.SATIEnodeList.Add(this);
+        SATIEsetup.SATIEnodeList.Add(this);
 
-		transform.name = nodeName;  // overwrite node name with spatOSC unique name
+        transform.name = nodeName;  // overwrite node name with spatOSC unique name
 
 
 
-        StartCoroutine( initProperties() );
+        StartCoroutine(initProperties());
 
         return result;
     }
@@ -384,9 +392,9 @@ public class SATIEnode : MonoBehaviour {
 
 
     // OLD STYLE - NEEDS TO BE REDONE
-    public void sendEvent (string keyWord, string CommaDelimitedValuesString)
+    public void sendEvent(string keyWord, string CommaDelimitedValuesString)
     {
-        int  ivalue;
+        int ivalue;
         float fvalue;
         string path;
 
@@ -395,7 +403,7 @@ public class SATIEnode : MonoBehaviour {
 
         List<object> items = new List<object>();
 
-        path = "/spatosc/core/"+nodeType+"/" + nodeName + "/event";
+        path = "/spatosc/core/" + nodeType + "/" + nodeName + "/event";
         
         
         items.Add(keyWord);
@@ -407,43 +415,58 @@ public class SATIEnode : MonoBehaviour {
             {
                 //Debug.Log("ITEM IS AN INTEGER = " + ivalue);
                 items.Add(ivalue);
-            } else if (float.TryParse(svalue, out fvalue))
+            }
+            else if (float.TryParse(svalue, out fvalue))
             {
                 //Debug.Log("ITEM IS A FLOAT = " + fvalue);
                 items.Add(fvalue);
-            } else
+            }
+            else
             {
                 //Debug.Log("ITEM IS A STRING = " + svalue);
                 items.Add(svalue);
             }
         }
-        
+ 
         SATIEsetup.OSCtx(path, items);
         items.Clear();
-   }
+    }
 
   
-	public void sendEvent (List<object> items )   // items contains keyword data1 data2..... dataN
-	{
+    public void sendEvent(List<object> items)   // items contains keyword data1 data2..... dataN
+    {
 
-		string path;
 
-		path = "/spatosc/core/"+nodeType+"/" + nodeName + "/event";
-				
-		SATIEsetup.OSCtx(path, items);
-		items.Clear();
-	}
+        string path;
+
+        path = "/spatosc/core/" + nodeType + "/" + nodeName + "/event";
+  
+        string sheefa = "";
+
+        foreach (object o in items)
+        {
+            sheefa += o.ToString();
+            sheefa += "";
+        }
+ 
+		
+        //Debug.Log(transform.name + " : " + GetType() + " : " + "sendEvent: "+path+" : "+sheefa  );
+
+
+        SATIEsetup.OSCtx(path, items);
+        //items.Clear();
+    }
 
 
 
     public virtual void  setNodeActive(string nodeName, bool state)
     {
-        string path = "/spatosc/core/"+nodeType+"/" + nodeName + "/state";
+        string path = "/spatosc/core/" + nodeType + "/" + nodeName + "/state";
         List<object> items = new List<object>();
         
-        if (state) 
+        if (state)
             items.Add(1);
-        else 
+        else
             items.Add(0);
               
         SATIEsetup.OSCtx(path, items);
@@ -453,7 +476,7 @@ public class SATIEnode : MonoBehaviour {
 
     public virtual void deleteNode(string nodeName)
     {
-        string path = "/spatosc/core/";
+        string path = "/spatosc/core";
         List<object> items = new List<object>();
 
         items.Add("deleteNode");
@@ -465,13 +488,13 @@ public class SATIEnode : MonoBehaviour {
     }
         
     // DANGER:  no uriString format checking
-    public  void setUri ( string uriString )
+    public  void setUri(string uriString)
     {
 
         uri = uriString;
-        if ( _start) 
+        if (_start)
         {
-            sendUri ( uriString );
+            sendUri(uriString);
             sendProperties();
             updatePosFlag = true;
             updateRotFlag = true;
@@ -481,7 +504,7 @@ public class SATIEnode : MonoBehaviour {
     public void sendUri(string uriString)
     {
      
-        string path = "/spatosc/core/"+nodeType+"/" + nodeName + "/uri";
+        string path = "/spatosc/core/" + nodeType + "/" + nodeName + "/uri";
         List<object> items = new List<object>();
 
         items.Add(uriString);        
@@ -491,25 +514,25 @@ public class SATIEnode : MonoBehaviour {
 
 
 
-	// Update is called once per frame
-	public virtual void Update () 
-	{
-		//if (Input.GetKeyDown("s")) sendProperties();
-		//if (Input.GetKeyDown("a")) sendEvent("sheefa", "1,2,-3,4.1");
-	} 
+    // Update is called once per frame
+    public virtual void Update()
+    {
+        //if (Input.GetKeyDown("s")) sendProperties();
+        //if (Input.GetKeyDown("a")) sendEvent("sheefa", "1,2,-3,4.1");
+    }
 
 
-	public virtual void FixedUpdate () 
-	{
+    public virtual void FixedUpdate()
+    {
 		 
-	}
+    }
 
 
     // lateUpdate is called onece per frame, after physics engine is updated
-	public virtual void LateUpdate () 
-	{
-			updateNode(); 
-	}
+    public virtual void LateUpdate()
+    {
+        updateNode(); 
+    }
 	
 
 
@@ -527,7 +550,8 @@ public class SATIEnode : MonoBehaviour {
                 //SATIEsetup.setPositionWrapper(nodeName,transform.position.x, transform.position.y, transform.position.z);
                 updatePosFlag = true;
                 _lastSpatUpdatePos = transform.position;   
-                if (debug) Debug.Log("SATIEnode.Update: filter mode update position for "+nodeName);
+                if (debug)
+                    Debug.Log("SATIEnode.Update: filter mode update position for " + nodeName);
             }     
 
             if (angleDif > angleThresh || angleDif < -angleThresh)
@@ -537,7 +561,8 @@ public class SATIEnode : MonoBehaviour {
                 //SATIEsetup.setOrientation(nodeName, orientation.x, orientation.y, orientation.z); 
                 updateRotFlag = true;
                 _lastSpatUpdateRotation = (Quaternion)transform.rotation;
-                if (debug) Debug.Log("SATIEnode.Update: " + nodeName + " orientation = " + orientation);
+                if (debug)
+                    Debug.Log("SATIEnode.Update: " + nodeName + " orientation = " + orientation);
             }
         }
         else  // Else just simple change filter   (any change at all)
@@ -547,48 +572,107 @@ public class SATIEnode : MonoBehaviour {
                 //SATIEsetup.setPositionWrapper(nodeName,transform.position.x, transform.position.y, transform.position.z);
                 updatePosFlag = true;
                 _lastPos = transform.position;
-                if (debug) Debug.Log("SATIEnode.Update: filter mode update position for "+nodeName);
+                if (debug)
+                    Debug.Log("SATIEnode.Update: filter mode update position for " + nodeName);
             }
             
-            if (_lastRot != (Quaternion) transform.rotation)
+            if (_lastRot != (Quaternion)transform.rotation)
             {
                 Vector3 orientation = transform.rotation.eulerAngles;
                 
                 //SATIEsetup.setOrientation(nodeName, orientation.x, orientation.y, orientation.z);
                 updateRotFlag = true;
-                _lastRot = (Quaternion) transform.rotation;
+                _lastRot = (Quaternion)transform.rotation;
                 
-                if (debug) Debug.Log("SATIEnode.Update: " + nodeName + " orientation = " + orientation);
+                if (debug)
+                    Debug.Log("SATIEnode.Update: " + nodeName + " orientation = " + orientation);
             }
         }
         //Debug.Log("spatOECnode.updateNode: time delta:" + (Time.realtimeSinceStartup - _lastUpdateTime));
-      //  _lastUpdateTime = Time.realtimeSinceStartup;
+        //  _lastUpdateTime = Time.realtimeSinceStartup;
     }
 
     void OnDestroy()
     {
         if (SATIEsetup.OSCenabled)
         {
-			// SATIEnode node = (SATIEnode) this;
 
-			SATIEsetup.SATIEnodeList.Remove(this);
+            // SATIEnode node = (SATIEnode) this;
 
-			switch (nodeType) 
-			{
+            SATIEsetup.SATIEnodeList.Remove(this);
+
+            switch (nodeType)
+            {
 				
-			case  "listener": 
-				listenerInsatances.Remove ( this );
-				break;
-			case  "source":
-				sourceInsatances.Remove (this);
-				break;
-			case "group":
-				groupInsatances.Remove (this);
-				break;
-			}
+                case  "listener": 
+                    listenerInsatances.Remove(this);
+                    break;
+                case  "source":
+                    sourceInsatances.Remove(this);
+                    break;
+                case "group":
+                    groupInsatances.Remove(this);
+                    break;
+            }
 
             deleteNode(nodeName);
         }
+    }
+
+
+    // prints a warning message and returns empty string if property is not found
+    public string getStrProperty(string propName)
+    {
+
+        foreach (string s in PropertyMessages)
+        {
+
+            if (!s.StartsWith(propName)) continue;
+
+
+            List<string> items = new List<string>(s.Split(' '));
+            foreach (string item in items)
+            {
+                if (item.Equals(' '))
+                    continue;
+                
+                return item;
+            }
+        }
+        Debug.LogWarning(transform.name + " " + GetType() + ":getProperty() prop: " + propName + " not able to match property, and or: bad value format, must be a string"); 
+        return "";
+    }
+
+    // prints a warning message and returns zero if property is not found
+    public float getFloatProperty(string propName)
+    {
+
+        foreach (string s in PropertyMessages)
+        {
+
+            if (!s.StartsWith(propName)) continue;
+
+
+            List<string> items = new List<string>(s.Split(' '));
+            foreach (string item in items)
+            {
+                int ival;
+                float fval;
+                double dval;
+
+                if (item.Equals(' '))
+                    continue;
+
+                if (int.TryParse(item, out ival))
+                    return (float)ival;
+                else if (float.TryParse(item, out fval))
+                    return fval;
+                else if (double.TryParse(item, out dval))
+                    return (float)dval;
+            }
+        }
+        Debug.LogWarning(transform.name + " " + GetType() + ":getProperty() prop: " + propName + " not able to match property, and or: bad value format, must be a float"); 
+        return 0f;
     }
 
 
@@ -625,7 +709,8 @@ public class SATIEnode : MonoBehaviour {
                 _assetPath = Application.streamingAssetsPath + Path.DirectorySeparatorChar + AssetPath;
                 
                 uriString = uri.Replace("//", "//" + _assetPath + Path.DirectorySeparatorChar);
-            } else
+            }
+            else
                 uriString = uri;
             
             sendUri(uriString);
@@ -640,7 +725,8 @@ public class SATIEnode : MonoBehaviour {
     {
         foreach (string s in PropertyMessages)
         {
-            if (s.Equals("") ) continue;
+            if (s.Equals(""))
+                continue;
 
             string keyword = "";
             string svalue = "";
@@ -673,7 +759,8 @@ public class SATIEnode : MonoBehaviour {
             if (!keyword.Equals("") && !svalue.Equals(""))   // keyword and value good, now send the corrensponding properties messages
             {
                 sendOSCprop(keyword, svalue);
-            } else
+            }
+            else
             {
                 Debug.LogWarning(transform.name + ":  SATIEnode.Start: param mess: ignoring incomplete message");
                 break;
@@ -683,18 +770,18 @@ public class SATIEnode : MonoBehaviour {
 
 
 
-    void sendOSCprop(string keyword, string svalue)
+    public void sendOSCprop(string keyword, string svalue)
     {
         
         List<object> items = new List<object>();
 
         int ivalue;
-        float fvalue;
+        float fvalue = 0;
 
 
-        string path = "/spatosc/core/"+nodeType+"/" + nodeName + "/prop";
+        string path = "/spatosc/core/" + nodeType + "/" + nodeName + "/prop";
 
-       
+ 
         items.Add(keyword);
 
 
@@ -703,19 +790,23 @@ public class SATIEnode : MonoBehaviour {
         {
             //Debug.Log("ITEM IS AN INTEGER = " + ivalue);
             items.Add(ivalue);
-        } else if (float.TryParse(svalue, out fvalue))
+        }
+        else if (float.TryParse(svalue, out fvalue))
         {
             //Debug.Log("ITEM IS A FLOAT = " + fvalue);
             items.Add(fvalue);
-        } else
+        }
+        else
         {
             //Debug.Log("ITEM IS A STRING = " + svalue);
             items.Add(svalue);
         }
 
+        //Debug.Log(transform.name + " : " + GetType() + " : " + "sendOSCprop: "+path+" : "+keyword+" : "+fvalue  );
+
         SATIEsetup.OSCtx(path, items);
         items.Clear();
-     }
+    }
 
 
 }

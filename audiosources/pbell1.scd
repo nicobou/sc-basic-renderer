@@ -18,7 +18,7 @@
 o = OSCresponderNode(s.addr, '/tr', { |time, resp, msg| msg.postln }).add;
 o.remove;  // when done, you need to clean up the OSCresponderNode
 
-SendTrig.kr(Impulse.kr(1), 0, freq);  //  in synthdef
+SendTrig.kr(Impulse.kr(1), 0, gate);  //  in synthdef
 
 */
 
@@ -34,25 +34,31 @@ SendTrig.kr(Impulse.kr(1), 0, freq);  //  in synthdef
 
 
 
-// NOTE:  this synthdef is unstable when instatiated, so it is muted for the first 10 seconds
+// NOTE:  this synthdef is unstable when instatiated,
+//  muteSecs:   mutes output and sets the decay to zero and then scales back to normal  during the first muteSecs of the synth's life
 
 ~name = \pbell1;
 
-~function = { |outbus, t_trig = 1, decayscale = 0.2, i_doneAction = 0,   note = #[60, 0, 0]  |
+// note:  midiPitch  Unit-Incidence Unit-Amplitude  (positive values between 0 and 1)
+~function = { |outbus, decayscale = 0.2, i_doneAction = 0,  trimDB=0,  muteSecs = 10,  note = #[60, 0, 0], t_trig= -1 |
 
 	var sig, input, first, freqscale,  transient, bellFq, halfSR, lpFq, fqScaler,fqRange, fqLowClip, fqHighClip,fqOffset, incidenceScaler,ampScaler;
 	var correctionGain, pulseWidth;
 
 	var freq = note[0].midicps;
-	var amp = note[1];
-
-	var incidence = note[2].clip(-1,1);
-
-	var muteEnv = Env.pairs([[0, 0], [8, 0],  [9, 1]], \lin);    // 6 seconds of muting muting to prevent explosion
+	var incidence = note[1].clip(-0.9999, 0.9999);   // safety
+	var  amp = note[2].clip(-0.9999, 0.9999);   // safety
 
 
-	amp = amp * 0.2;      // static gain adjustement
+
+	var muteEnv = Env.pairs([[0, 0], [ 1, 0],  [ 1, 1]], \lin);    //  muteSecs seconds of initial decay muting muting to prevent explosion
+
+	// amp = (amp ** 1) * 0.1;      // static gain adjustement  -- enable and tune here if need be
+	amp =  amp * 0.1;      // static gain adjustement  --
+
 	incidence = abs(incidence);
+
+			//SendTrig.kr(Impulse.kr(1), 0, incidence);
 
 	correctionGain =   4- (  (1 -  incidence )**0.5);   // compensate for more wider pulse energy
 	pulseWidth = 1 + (35 * ( 1 - incidence )**0.8);  // pulse width as function of incidence
@@ -77,29 +83,15 @@ SendTrig.kr(Impulse.kr(1), 0, freq);  //  in synthdef
 
 	fqOffset =  (0.2 * bellFq) + ( fqScaler *  0.8 * bellFq ) ;  // use the note's register to calculate the lowPass fq value.
 
-
-	// SendTrig.kr(Impulse.kr(1), 0, ampScaler);
-
 	fqRange =   (0.5*SampleRate.ir) - fqOffset;
 
 	lpFq =  fqOffset + (incidenceScaler * fqRange);
 
-	// WAS transient = LPF.ar(   Trig.ar( t_trig, SampleDur.ir ) !2,  10000 * Ramp.kr( freqscale, 0.01 ) );   // replaced with pulseWidth
-
-	transient = (Trig.ar( t_trig, SampleDur.ir  * pulseWidth) !2 )* correctionGain * ampScaler;
-
-
+	transient = (Trig1.ar(t_trig, SampleDur.ir  * pulseWidth) !2 )* correctionGain * ampScaler;
 
 	input = LPF.ar(transient,  Ramp.ar( K2A.ar (lpFq), 0.005)   );    // "mallet"
 
-
-
-	// WAS  input = LPF.ar(transient,  Ramp.ar(lpFq, 0.01)   );    // "mallet"
-
-
-	//input = transient;    // "mallet"
-
-	sig = EnvGen.kr(muteEnv)  * DynKlank.ar(`[
+	sig = DynKlank.ar(`[
     [
       (first = LFNoise1.kr(0.5).range(2424, 2444)) + Line.kr(20, 0, 0.5),
       first + LFNoise1.kr(0.5).range(1,3),
@@ -142,15 +134,31 @@ SendTrig.kr(Impulse.kr(1), 0, freq);  //  in synthdef
       0.4,
       0.6
     ] * freqscale.reciprocal.pow(0.5)
-  ], input, freqscale, 0, decayscale);
+  ], input, freqscale, 0, EnvGen.kr(muteEnv, timeScale: muteSecs)  * decayscale);
+
+	sig = trimDB.dbamp * sig * EnvGen.kr(muteEnv, timeScale: muteSecs);
 
 	DetectSilence.ar(sig, doneAction: i_doneAction);
 
-	// Out.ar(0, sig);  //enable this for debugging
+	//Out.ar(0, sig);  //enable this for debugging
 
 	sig;
 
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /*   DEBUGGING
 
@@ -161,15 +169,56 @@ s.meter
 
 SynthDef(\prayer_bell,  ~function  ).add;
 
-~ballSet =Synth.new("prayer_bell",  [ \i_doneAction, 0, \decayscale , 0.7, \note,  [80,1, 0.5]     ]);
-~ballSet.set(\i_doneAction, 0);
-~ballSet.set(\decayscale, 0.8);
 
-~ballSet.set(\pulseWidth, 100);
+~bell =Synth.new("prayer_bell",  [ \i_doneAction, 0, \decayscale , 0.7, \note,  [61,1, 0.5], \muteSecs, 0 ]);
+
+
+
+
+~bell.set(\note, #[61, 0.9, 0.9], \t_trig, 1);
+
+
+
+~bell.set(\decayscale , 0.7,   \muteSecs, 0)
+
+~bell.set(\t_trig, 1);
+~bell.set(\decayscale, 0.1);
+~bell.set(\gainDB, 0);
+
+
+~bell.free;
+
+
+
+
+
+
+
+
+
+
+
+
+~ballSet =Synth.new("prayer_bell",  [ \i_doneAction, 0, \decayscale , 0.7, \note,  [80,1, 0.5], \muteSecs, 5 ]);
 ~ballSet.set(\t_trig, 1);
 
 
+
+~ballSet.set(\i_doneAction, 0);
+~ballSet.set(\decayscale, 0.8);
+
+~ballSet.set(\trimDB, 10);
+~ballSet.set(\decayscale, 0.02);
+~ballSet.set(\t_trig, 1);
+
+
+~ballSet.set(\t_trig, 1);
 ~ballSet.set(\note,  [80,0.2, 0.5] );
+
+
+
+
+~ballSet.free;
 
 
 

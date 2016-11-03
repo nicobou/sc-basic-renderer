@@ -22,6 +22,8 @@ public class SATIElistener : SATIEnode {
     
     //public delegate void SATIEConnection(Transform tr, bool posFlag, bool rotFlag);
 	
+	[Header("Listener Settings")]
+
 	public bool submergedFlag = false;
 	private bool _submergedFlag;
 
